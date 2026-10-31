@@ -721,17 +721,70 @@ async function showDashboard(user) {
   const courseList = document.createElement("div");
   courseList.textContent = "Loading courses...";
 
-  const logout = document.createElement("button");
-  logout.textContent = "Logout";
-  logout.onclick = logoutStudent;
+  dashboard.append(heading, email, coursesHeading, courseList);
 
-  dashboard.append(
-    heading,
-    email,
-    coursesHeading,
-    courseList,
-    logout
-  );
+  const courseNames = {
+    "stock-market-basics": "Stock Market Basics",
+    "technical-analysis": "Technical Analysis",
+    "risk-management": "Risk Management",
+    "fo-education": "F&O Education"
+  };
+
+  // YouTube video links can be added here later
+  const courseVideos = {
+    "stock-market-basics": "",
+    "technical-analysis": "",
+    "risk-management": "",
+    "fo-education": ""
+  };
+
+  const { data, error } = await db
+    .from("course_enrollments")
+    .select("course_id")
+    .eq("user_id", user.id);
+
+  courseList.textContent = "";
+
+  if (error) {
+    courseList.textContent = "Unable to load courses. Please try again.";
+    console.error("Course loading error:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    courseList.textContent = "No courses purchased yet.";
+    return;
+  }
+
+  data.forEach((item) => {
+    const courseId = item.course_id;
+
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const title = document.createElement("h3");
+    title.textContent = "✓ " + (courseNames[courseId] || courseId);
+    card.appendChild(title);
+
+    const videoUrl = courseVideos[courseId];
+
+    if (videoUrl) {
+      const video = document.createElement("iframe");
+      video.src = videoUrl;
+      video.width = "100%";
+      video.height = "315";
+      video.allowFullscreen = true;
+      video.title = title.textContent;
+      card.appendChild(video);
+    } else {
+      const message = document.createElement("p");
+      message.textContent = "Course videos coming soon.";
+      card.appendChild(message);
+    }
+
+    courseList.appendChild(card);
+  });
+}
 
   const courseNames = {
     "stock-market-basics": "Stock Market Basics",
