@@ -350,6 +350,43 @@ footer {
   color: #39ff14;
   background: #0b130c;
 }
+  /* Premium Neon Trading Hero */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 0%, #12351a 0%, #050805 65%);
+  border-bottom: 1px solid #39ff1470;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .22;
+  background-image:
+    linear-gradient(#39ff1420 1px, transparent 1px),
+    linear-gradient(90deg, #39ff1420 1px, transparent 1px);
+  background-size: 45px 45px;
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1 {
+  text-shadow: 0 0 25px #39ff1435;
+}
+
+.hero p {
+  color: #c4d8c4;
+}
+
+.hero .btn {
+  box-shadow: 0 0 20px #39ff1450;
+}
 </style>
 </head>
 
