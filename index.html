@@ -459,11 +459,80 @@ document.getElementById("authModal").addEventListener("click", function(e) {
   if (e.target === this) closeAuth();
 });
 
-function buyCourse(courseName, amount) {
-  alert(
-    courseName + " selected. Price: ₹" + amount +
-    ". Online payment setup is pending. Please check back soon."
-  );
+async function buyCourse(courseId) {
+  try {
+    const { data: sessionData, error: sessionError } =
+      await db.auth.getSession();
+
+    if (sessionError) throw sessionError;
+
+    const session = sessionData.session;
+
+    if (!session) {
+      alert("Please login first to purchase a course.");
+      openAuth("login");
+      return;
+    }
+
+    const { data: order, error: orderError } =
+      await db.functions.invoke("create-razorpay-order", {
+        body: { courseId },
+        headers: {
+          Authorization: "Bearer " + session.access_token
+        }
+      });
+
+    if (orderError) throw orderError;
+
+    const options = {
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: "DK Trading Academy",
+      description: "Course Purchase",
+      order_id: order.orderId,
+
+      handler: async function (response) {
+        try {
+          const { data: result, error: verifyError } =
+            await db.functions.invoke("verify-razorpay-payment", {
+              body: response,
+              headers: {
+                Authorization: "Bearer " + session.access_token
+              }
+            });
+
+          if (verifyError) throw verifyError;
+
+          if (result.verified && result.enrolled) {
+            alert("Payment successful! Course enrollment completed.");
+          } else {
+            alert("Payment received, but enrollment needs verification. Please contact support.");
+          }
+        } catch (error) {
+          console.error(error);
+          alert("Payment verification failed. Please contact support before trying again.");
+        }
+      },
+
+      modal: {
+        ondismiss: function () {
+          console.log("Payment window closed.");
+        }
+      },
+
+      theme: {
+        color: "#D4AF37"
+      }
+    };
+
+    const checkout = new Razorpay(options);
+    checkout.open();
+
+  } catch (error) {
+    console.error("Payment error:", error);
+    alert("Unable to start payment. Please login and try again.");
+  }
 }
 
 const SUPABASE_URL = "https://labwytrvluddgezempyf.supabase.co";
