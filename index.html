@@ -377,7 +377,22 @@ footer {
   </div>
 
 </section>
+<section id="student-account" class="center">
+  <h2>Student Account</h2>
+  <p>Register or login to DK Trading Academy</p>
 
+  <div class="card">
+    <input type="text" id="studentName" placeholder="Full Name">
+    <input type="email" id="studentEmail" placeholder="Email Address">
+    <input type="password" id="studentPassword" placeholder="Password">
+
+    <button onclick="registerStudent()">Register</button>
+    <button onclick="loginStudent()">Login</button>
+
+    <div id="studentMessage"></div>
+    <div id="studentDashboard"></div>
+  </div>
+</section>
 <section id="contact" class="center">
 
   <h2>Start Your Learning Journey</h2>
@@ -431,7 +446,96 @@ function membershipMessage() {
 }
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+const SUPABASE_URL = "https://labwytrvluddgezempyf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_vCScgztK_z-kiVMUgg3d8w_RFuUcxx";
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+async function registerStudent() {
+  const name = document.getElementById("studentName").value.trim();
+  const email = document.getElementById("studentEmail").value.trim();
+  const password = document.getElementById("studentPassword").value;
+
+  const message = document.getElementById("studentMessage");
+
+  if (!name || !email || !password) {
+    message.innerText = "Please fill all details.";
+    return;
+  }
+
+  if (password.length < 6) {
+    message.innerText = "Password must be at least 6 characters.";
+    return;
+  }
+
+  const { data, error } = await db.auth.signUp({
+    email: email,
+    password: password,
+    options: {
+      data: { full_name: name },
+      emailRedirectTo: window.location.origin
+    }
+  });
+
+  if (error) {
+    message.innerText = error.message;
+    return;
+  }
+
+  message.innerText = data.session
+    ? "Registration successful!"
+    : "Registration successful. Please verify your email.";
+}
+
+async function loginStudent() {
+  const email = document.getElementById("studentEmail").value.trim();
+  const password = document.getElementById("studentPassword").value;
+  const message = document.getElementById("studentMessage");
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    message.innerText = error.message;
+    return;
+  }
+
+  showDashboard(data.user);
+}
+
+function showDashboard(user) {
+  document.getElementById("studentDashboard").innerHTML =
+    "<h3>Welcome to DK Trading Academy!</h3>" +
+    "<p>" + user.email + "</p>" +
+    '<button onclick="logoutStudent()">Logout</button>';
+}
+
+async function logoutStudent() {
+  const { error } = await db.auth.signOut();
+
+  if (error) {
+    document.getElementById("studentMessage").innerText = error.message;
+    return;
+  }
+
+  document.getElementById("studentDashboard").innerHTML = "";
+  document.getElementById("studentMessage").innerText = "Logged out.";
+}
+
+db.auth.getSession().then(({ data }) => {
+  if (data.session) {
+    showDashboard(data.session.user);
+  }
+});
+</script>
 </body>
 
 </html>
