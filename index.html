@@ -198,6 +198,100 @@ footer {
 
 }
 
+/* DK Trading Academy - Professional Trading Terminal Theme */
+
+body {
+  background-color: #030d1c;
+  background-image:
+    linear-gradient(rgba(30, 100, 160, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 100, 160, 0.10) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, #16395d, #030d1c 75%);
+  background-size: 45px 45px, 45px 45px, cover;
+  background-attachment: fixed;
+}
+
+header {
+  background: rgba(3, 13, 28, 0.96);
+  border-bottom: 1px solid #b58b35;
+}
+
+.logo {
+  color: #e8bd60;
+  text-shadow: 0 0 12px rgba(217, 180, 92, 0.3);
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(3,13,28,.88), rgba(7,30,54,.72)),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 28px,
+      rgba(30, 150, 110, .08) 29px 30px
+    ),
+    radial-gradient(ellipse at center, #173b60, #030d1c 80%);
+  border-bottom: 1px solid #b58b35;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .22;
+  background:
+    linear-gradient(135deg, transparent 45%, #00c982 45.3%, transparent 45.8%),
+    linear-gradient(155deg, transparent 55%, #d9b45c 55.3%, transparent 55.8%);
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.card {
+  background: linear-gradient(145deg, #112b48, #08172b);
+  border-color: #344d69;
+}
+
+.card:hover {
+  border-color: #d9b45c;
+  transform: translateY(-4px);
+  transition: .25s ease;
+}
+
+.price {
+  box-shadow: 0 0 25px rgba(217, 180, 92, .12);
+}
+
+/* Professional Trading Candlestick Visual */
+
+.hero {
+  background-image:
+    linear-gradient(
+      rgba(3, 13, 28, 0.82),
+      rgba(3, 13, 28, 0.82)
+    ),
+    url("https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1800&q=85");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.hero h1 span {
+  color: #e8bd60;
+  text-shadow: 0 0 18px rgba(217, 180, 92, 0.3);
+}
+
+.tag {
+  text-shadow: 0 0 12px rgba(217, 180, 92, 0.35);
+}
+
+.card {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+}
+
 </style>
 
 </head>
