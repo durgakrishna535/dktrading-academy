@@ -679,8 +679,6 @@ async function submitAuth(event) {
 
    message.textContent = "";
 showDashboard(data.user);
-    alert("Dashboard function called");
-    closeAuth();
   }
 }
 async function updatePassword() {
@@ -786,41 +784,10 @@ async function showDashboard(user) {
       card.appendChild(message);
     }
 
-    courseList.appendChild(card);
+      courseList.appendChild(card);
   });
 }
 
-  const courseNames = {
-    "stock-market-basics": "Stock Market Basics",
-    "technical-analysis": "Technical Analysis",
-    "risk-management": "Risk Management",
-    "fo-education": "F&O Education"
-  };
-
-  const { data, error } = await db
-    .from("course_enrollments")
-    .select("course_id")
-    .eq("user_id", user.id);
-
-  courseList.textContent = "";
-
-  if (error) {
-    courseList.textContent = "Unable to load courses. Please try again.";
-    console.error("Course loading error:", error);
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    courseList.textContent = "No courses purchased yet.";
-    return;
-  }
-
-  data.forEach((item) => {
-    const course = document.createElement("p");
-    course.textContent = "✓ " + (courseNames[item.course_id] || item.course_id);
-    courseList.appendChild(course);
-  });
-}
 async function logoutStudent() {
   const {error} = await db.auth.signOut();
 
