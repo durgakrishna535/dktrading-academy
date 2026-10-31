@@ -565,11 +565,21 @@ async function buyCourse(courseId) {
     const checkout = new Razorpay(options);
     checkout.open();
 
-  } catch (error) {
-    console.error("Payment error:", error);
-    alert("Unable to start payment. Please login and try again.");
-    alert("Payment Error: " + error.message);
+ } catch (error) {
+  console.error("Payment error:", error);
+
+  let details = error.message;
+
+  if (error.context) {
+    try {
+      const response = await error.context.json();
+      details = response.error || JSON.stringify(response);
+    } catch {
+      details = error.message;
+    }
   }
+
+  alert("Payment Error: " + details);
 }
 
 const SUPABASE_URL = "https://labwytrvluddgezempyf.supabase.co";
