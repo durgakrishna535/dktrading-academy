@@ -427,6 +427,12 @@ function openAuth(mode) {
   document.getElementById("authModal").classList.add("show");
   document.getElementById("studentMessage").textContent = "";
   document.getElementById("studentDashboard").innerHTML = "";
+  document.getElementById("resetPasswordBox").style.display = "none";
+document.getElementById("authSubmit").style.display = "block";
+document.getElementById("studentEmail").style.display = "block";
+document.getElementById("studentPassword").style.display = "block";
+document.getElementById("authSwitch").style.display = "block";
+document.getElementById("forgotPasswordLink").style.display = "block";
 
   const isRegister = mode === "register";
 
@@ -621,6 +627,30 @@ async function submitAuth(event) {
     showDashboard(data.user);
   }
 }
+async function updatePassword() {
+  const password = document.getElementById("newPassword").value.trim();
+
+  if (password.length < 6) {
+    alert("Password must be at least 6 characters.");
+    return;
+  }
+
+  const { error } = await db.auth.updateUser({
+    password: password
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Password updated successfully. Please login again.");
+
+  document.getElementById("resetPasswordBox").style.display = "none";
+  document.getElementById("authModal").classList.remove("show");
+
+  await db.auth.signOut();
+}
 
 function showDashboard(user) {
   const dashboard = document.getElementById("studentDashboard");
@@ -651,9 +681,20 @@ async function logoutStudent() {
   document.getElementById("studentMessage").textContent = "Logged out.";
 }
 
-db.auth.getSession().then(({data,error}) => {
-  if (!error && data.session) {
-    showDashboard(data.session.user);
+db.auth.onAuthStateChange((event, session) => {
+  if (event === "PASSWORD_RECOVERY") {
+    document.getElementById("authModal").classList.add("show");
+    document.getElementById("resetPasswordBox").style.display = "block";
+    document.getElementById("authTitle").textContent = "Reset Your Password";
+
+    document.getElementById("studentName").style.display = "none";
+    document.getElementById("studentEmail").style.display = "none";
+    document.getElementById("studentPassword").style.display = "none";
+    document.getElementById("authSubmit").style.display = "none";
+    document.getElementById("authSwitch").style.display = "none";
+    document.getElementById("forgotPasswordLink").style.display = "none";
+  } else if (session) {
+    showDashboard(session.user);
   }
 });
 </script>
