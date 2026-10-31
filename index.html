@@ -243,8 +243,18 @@ footer {
     <a href="#live">Live Classes</a>
     <a href="#contact">Contact</a>
     <button class="lang" onclick="toggleLanguage()">తెలుగు</button>
-    <button class="outline-btn" onclick="openAuth('login')">Login</button>
-    <button onclick="openAuth('register')">Register</button>
+    <div id="authNav">
+  <button class="outline-btn" onclick="openAuth('login')">Login</button>
+  <button onclick="openAuth('register')">Register</button>
+</div>
+
+<div id="studentNav" style="display:none;">
+  <details>
+    <summary>My Courses</summary>
+    <a href="#student-dashboard">Purchased Courses</a>
+  </details>
+  <button onclick="logoutStudent()">Logout</button>
+</div>
   </nav>
 </header>
 
@@ -747,6 +757,14 @@ async function logoutStudent() {
 }
 
 db.auth.onAuthStateChange((event, session) => {
+    document.getElementById("authNav").style.display =
+    session ? "none" : "block";
+
+  document.getElementById("studentNav").style.display =
+    session ? "flex" : "none";
+
+  document.getElementById("student-dashboard").style.display =
+    session ? "block" : "none";
   if (event === "PASSWORD_RECOVERY") {
     document.getElementById("authModal").classList.add("show");
     document.getElementById("resetPasswordBox").style.display = "block";
