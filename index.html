@@ -675,11 +675,12 @@ async function updatePassword() {
 }
 
 async function showDashboard(user) {
-  const dashboard = document.getElementById("studentDashboard");
-  dashboard.textContent = "";
   document.getElementById("student-dashboard").style.display = "block";
+
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
+
+  const heading = document.createElement("h3");
 
   const heading = document.createElement("h3");
   heading.textContent = "Welcome to DK Trading Academy!";
