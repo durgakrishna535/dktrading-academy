@@ -350,7 +350,16 @@ footer {
 </section>
 
 </main>
+<section id="student-dashboard" style="display:none;">
+  <div class="section-title">
+    <h2>Student Dashboard</h2>
+    <p>Welcome to DK Trading Academy</p>
+  </div>
 
+  <div class="card">
+    <div id="studentDashboard"></div>
+  </div>
+</section>
 <footer>
   <strong style="color:var(--gold)">DK TRADING ACADEMY</strong>
   <p>Learn. Practice. Improve.</p>
@@ -382,7 +391,6 @@ footer {
     </form>
 
     <div id="studentMessage" role="status"></div>
-    <div id="studentDashboard"></div>
 <div id="resetPasswordBox" style="display:none;">
   <h3>Set New Password</h3>
   <input
@@ -638,6 +646,7 @@ async function submitAuth(event) {
    message.textContent = "";
 showDashboard(data.user);
     alert("Dashboard function called");
+    closeAuth();
   }
 }
 async function updatePassword() {
@@ -666,6 +675,9 @@ async function updatePassword() {
 }
 
 async function showDashboard(user) {
+  const dashboard = document.getElementById("studentDashboard");
+  dashboard.textContent = "";
+  document.getElementById("student-dashboard").style.display = "block";
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
 
