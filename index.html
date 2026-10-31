@@ -419,7 +419,52 @@ footer {
   color: #c4d8c4;
   line-height: 1.6;
 }
+/* Premium Student Trading Dashboard */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
 
+.dashboard-panel {
+  background: linear-gradient(145deg, #102014, #080d08);
+  border: 1px solid #39ff1460;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 0 16px #39ff1415;
+}
+
+.dashboard-panel h3 {
+  color: #39ff14;
+  margin-top: 0;
+}
+
+.dashboard-value {
+  color: #39ff14;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.progress-track {
+  height: 9px;
+  background: #263326;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #39ff14;
+}
+
+@media (max-width: 700px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
 </head>
 
