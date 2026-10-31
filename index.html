@@ -673,14 +673,11 @@ async function updatePassword() {
 
   await db.auth.signOut();
 }
-
 async function showDashboard(user) {
   document.getElementById("student-dashboard").style.display = "block";
 
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
-
-  const heading = document.createElement("h3");
 
   const heading = document.createElement("h3");
   heading.textContent = "Welcome to DK Trading Academy!";
@@ -733,8 +730,7 @@ async function showDashboard(user) {
 
   data.forEach((item) => {
     const course = document.createElement("p");
-    course.textContent =
-      "✓ " + (courseNames[item.course_id] || item.course_id);
+    course.textContent = "✓ " + (courseNames[item.course_id] || item.course_id);
     courseList.appendChild(course);
   });
 }
