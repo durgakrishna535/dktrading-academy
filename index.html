@@ -1,635 +1,549 @@
-
-
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Dk Trading Academy | Learn the Markets</title>
+<title>DK Trading Academy | Learn the Markets</title>
 
 <style>
-
 :root {
-
-  --navy: #071426;
-
-  --panel: #10213a;
-
-  --gold: #d9b45c;
-
-  --white: #f5f5f5;
-
-  --muted: #aab5c5;
-
+  --navy:#030d1c;
+  --panel:#102743;
+  --gold:#e8bd60;
+  --white:#f5f5f5;
+  --muted:#aab5c5;
+  --green:#00c982;
 }
-
-* { box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
-
+* {box-sizing:border-box}
+html {scroll-behavior:smooth}
 body {
-
-  margin: 0;
-
-  background: var(--navy);
-
-  color: var(--white);
-
-  font-family: Arial, sans-serif;
-
-}
-
-header {
-
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  padding: 20px 7%;
-
-  border-bottom: 1px solid #26364c;
-
-}
-
-.logo { color: var(--gold); font-size: 23px; font-weight: bold; }
-
-nav a {
-
-  color: white; text-decoration: none;
-
-  margin-left: 22px; font-size: 14px;
-
-}
-
-nav a:hover { color: var(--gold); }
-
-button, .btn {
-
-  background: var(--gold); color: #071426;
-
-  border: 0; padding: 13px 22px;
-
-  border-radius: 7px; font-weight: bold;
-
-  cursor: pointer; text-decoration: none;
-
-}
-
-.hero {
-
-  padding: 100px 8%;
-
-  text-align: center;
-
-  background: radial-gradient(ellipse at top, #193455, #071426 70%);
-
-}
-
-.tag { color: var(--gold); letter-spacing: 3px; }
-
-h1 { font-size: clamp(38px, 7vw, 68px); margin: 20px 0; }
-
-h1 span { color: var(--gold); }
-
-.hero p {
-
-  color: var(--muted); max-width: 650px;
-
-  margin: 0 auto 30px; line-height: 1.8;
-
-}
-
-section { padding: 70px 8%; }
-
-.section-title { text-align: center; margin-bottom: 38px; }
-
-.section-title h2 { font-size: 34px; }
-
-.section-title p { color: var(--muted); }
-
-.grid {
-
-  display: grid;
-
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-
-  gap: 22px;
-
-}
-
-.card {
-
-  background: var(--panel);
-
-  padding: 27px;
-
-  border: 1px solid #263b57;
-
-  border-radius: 12px;
-
-}
-
-.card h3 { color: var(--gold); }
-
-.card p { color: var(--muted); line-height: 1.7; }
-
-.icon { font-size: 32px; }
-
-.price {
-
-  text-align: center;
-
-  max-width: 430px;
-
-  margin: auto;
-
-  border: 1px solid var(--gold);
-
-  background: linear-gradient(145deg, #142b49, #0b192d);
-
-  padding: 35px;
-
-  border-radius: 15px;
-
-}
-
-.price h2 { color: var(--gold); font-size: 48px; margin: 10px; }
-
-.price li { color: var(--muted); margin: 15px 0; }
-
-.price ul { list-style: none; padding: 0; }
-
-.price li::before { content: "✓ "; color: var(--gold); }
-
-.center { text-align: center; }
-
-footer {
-
-  text-align: center; padding: 35px 8%;
-
-  border-top: 1px solid #26364c;
-
-  color: var(--muted); line-height: 1.8;
-
-}
-
-.lang { background: transparent; color: var(--gold);
-
-  border: 1px solid var(--gold); padding: 9px 12px; }
-
-@media(max-width:700px) {
-
-  header { flex-wrap: wrap; gap: 15px; }
-
-  nav { width: 100%; display: flex; flex-wrap: wrap; gap: 15px; }
-
-  nav a { margin: 0; }
-
-  .hero { padding: 75px 6%; }
-
-  section { padding: 55px 6%; }
-
-}
-
-/* DK Trading Academy - Professional Trading Terminal Theme */
-
-body {
-  background-color: #030d1c;
+  margin:0;
+  color:var(--white);
+  font-family:Arial,sans-serif;
+  background-color:var(--navy);
   background-image:
-    linear-gradient(rgba(30, 100, 160, 0.10) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 100, 160, 0.10) 1px, transparent 1px),
-    radial-gradient(ellipse at 50% 0%, #16395d, #030d1c 75%);
-  background-size: 45px 45px, 45px 45px, cover;
-  background-attachment: fixed;
+    linear-gradient(rgba(30,100,160,.08) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(30,100,160,.08) 1px,transparent 1px),
+    radial-gradient(ellipse at 50% 0%,#16395d,var(--navy) 75%);
+  background-size:45px 45px,45px 45px,cover;
+  background-attachment:fixed;
 }
-
 header {
-  background: rgba(3, 13, 28, 0.96);
-  border-bottom: 1px solid #b58b35;
+  position:sticky;
+  top:0;
+  z-index:10;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  padding:17px 6%;
+  background:rgba(3,13,28,.97);
+  border-bottom:1px solid #b58b35;
 }
-
 .logo {
-  color: #e8bd60;
-  text-shadow: 0 0 12px rgba(217, 180, 92, 0.3);
+  color:var(--gold);
+  font-size:21px;
+  font-weight:bold;
+  white-space:nowrap;
 }
-
+nav {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:17px;
+}
+nav a {
+  color:white;
+  text-decoration:none;
+  font-size:14px;
+}
+nav a:hover {color:var(--gold)}
+button,.btn {
+  background:var(--gold);
+  color:#071426;
+  border:0;
+  padding:12px 19px;
+  border-radius:7px;
+  font-weight:bold;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-block;
+}
+button:hover,.btn:hover {filter:brightness(1.1)}
+.outline-btn {
+  background:transparent;
+  color:var(--gold);
+  border:1px solid var(--gold);
+}
 .hero {
-  position: relative;
-  overflow: hidden;
+  position:relative;
+  overflow:hidden;
+  padding:110px 8%;
+  text-align:center;
   background:
-    linear-gradient(90deg, rgba(3,13,28,.88), rgba(7,30,54,.72)),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 28px,
-      rgba(30, 150, 110, .08) 29px 30px
-    ),
-    radial-gradient(ellipse at center, #173b60, #030d1c 80%);
-  border-bottom: 1px solid #b58b35;
+    linear-gradient(rgba(3,13,28,.82),rgba(3,13,28,.84)),
+    url("https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1800&q=85")
+    center/cover no-repeat;
+  border-bottom:1px solid #b58b35;
 }
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: .22;
-  background:
-    linear-gradient(135deg, transparent 45%, #00c982 45.3%, transparent 45.8%),
-    linear-gradient(155deg, transparent 55%, #d9b45c 55.3%, transparent 55.8%);
-}
-
-.hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.card {
-  background: linear-gradient(145deg, #112b48, #08172b);
-  border-color: #344d69;
-}
-
-.card:hover {
-  border-color: #d9b45c;
-  transform: translateY(-4px);
-  transition: .25s ease;
-}
-
-.price {
-  box-shadow: 0 0 25px rgba(217, 180, 92, .12);
-}
-
-/* Professional Trading Candlestick Visual */
-
-.hero {
-  background-image:
-    linear-gradient(
-      rgba(3, 13, 28, 0.82),
-      rgba(3, 13, 28, 0.82)
-    ),
-    url("https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1800&q=85");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.hero h1 span {
-  color: #e8bd60;
-  text-shadow: 0 0 18px rgba(217, 180, 92, 0.3);
-}
-
 .tag {
-  text-shadow: 0 0 12px rgba(217, 180, 92, 0.35);
+  color:var(--gold);
+  letter-spacing:3px;
+  font-size:13px;
+  text-shadow:0 0 12px rgba(217,180,92,.35);
 }
-
+h1 {
+  font-size:clamp(38px,7vw,68px);
+  margin:20px 0;
+}
+h1 span {color:var(--gold)}
+.hero p {
+  color:var(--muted);
+  max-width:680px;
+  margin:0 auto 30px;
+  line-height:1.8;
+}
+section {padding:75px 8%}
+.section-title {
+  text-align:center;
+  margin-bottom:38px;
+}
+.section-title h2 {font-size:34px}
+.section-title p {color:var(--muted);line-height:1.7}
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:22px;
+}
 .card {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  background:linear-gradient(145deg,#112b48,#08172b);
+  padding:27px;
+  border:1px solid #344d69;
+  border-radius:12px;
+  box-shadow:0 8px 25px rgba(0,0,0,.25);
+  transition:.25s;
+}
+.card:hover {
+  border-color:var(--gold);
+  transform:translateY(-4px);
+}
+.card h3 {color:var(--gold)}
+.card p {color:var(--muted);line-height:1.7}
+.icon {font-size:32px}
+.course-price {
+  color:var(--gold);
+  font-size:29px;
+  font-weight:bold;
+  margin:18px 0;
+}
+.combo {
+  max-width:650px;
+  margin:35px auto 0;
+  text-align:center;
+  border:1px solid var(--gold);
+  background:linear-gradient(145deg,#18395b,#08172b);
+  box-shadow:0 0 30px rgba(217,180,92,.14);
+}
+.combo .course-price {font-size:45px}
+.center {text-align:center}
+.contact-details {
+  color:var(--muted);
+  line-height:2;
+}
+footer {
+  text-align:center;
+  padding:35px 8%;
+  border-top:1px solid #26364c;
+  color:var(--muted);
+  line-height:1.8;
+}
+.lang {
+  background:transparent;
+  color:var(--gold);
+  border:1px solid var(--gold);
+  padding:9px 12px;
 }
 
+/* Login and registration popup */
+.modal {
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:100;
+  background:rgba(0,0,0,.78);
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.modal.show {display:flex}
+.modal-box {
+  width:100%;
+  max-width:420px;
+  background:#0c2038;
+  border:1px solid var(--gold);
+  border-radius:14px;
+  padding:28px;
+  position:relative;
+}
+.modal-box h2 {color:var(--gold);margin-top:0}
+.close {
+  position:absolute;
+  right:15px;
+  top:12px;
+  background:transparent;
+  color:white;
+  font-size:25px;
+  padding:4px 10px;
+}
+.modal-box input {
+  display:block;
+  width:100%;
+  margin:13px 0;
+  padding:14px;
+  border-radius:7px;
+  border:1px solid #40536a;
+  background:#071426;
+  color:white;
+}
+.modal-box button.action {
+  width:100%;
+  margin-top:10px;
+}
+.switch-text {
+  color:var(--muted);
+  text-align:center;
+  margin-top:18px;
+  font-size:14px;
+}
+.switch-text a {color:var(--gold);cursor:pointer}
+#studentMessage {color:var(--gold);margin-top:14px}
+#studentDashboard {
+  margin-top:15px;
+  color:var(--green);
+  overflow-wrap:anywhere;
+}
+@media(max-width:800px) {
+  header {flex-wrap:wrap}
+  nav {width:100%;gap:13px}
+  nav a {font-size:13px}
+  .hero {padding:80px 6%}
+  section {padding:55px 6%}
+}
 </style>
-
 </head>
 
 <body>
 
 <header>
-
   <div class="logo">✦ DK TRADING ACADEMY</div>
 
   <nav>
-
     <a href="#home">Home</a>
-
     <a href="#courses">Courses</a>
-
     <a href="#live">Live Classes</a>
-
-    <a href="#membership">Membership</a>
-
+    <a href="#contact">Contact</a>
     <button class="lang" onclick="toggleLanguage()">తెలుగు</button>
-
+    <button class="outline-btn" onclick="openAuth('login')">Login</button>
+    <button onclick="openAuth('register')">Register</button>
   </nav>
-
 </header>
 
 <main>
 
 <section class="hero" id="home">
-
   <div class="tag">YOUR TRADING JOURNEY STARTS HERE</div>
-
   <h1>Master the <span>Markets.</span><br>Learn with Confidence.</h1>
-
   <p data-en="Learn stock market concepts, technical analysis and trading strategies through structured recorded courses and live educational classes."
-
      data-te="స్టాక్ మార్కెట్, టెక్నికల్ అనాలిసిస్ మరియు ట్రేడింగ్ విధానాలను రికార్డెడ్ కోర్సులు, లైవ్ క్లాసుల ద్వారా నేర్చుకోండి.">
-
     Learn stock market concepts, technical analysis and trading strategies through structured recorded courses and live educational classes.
-
   </p>
-
-  <a href="#membership" class="btn">Explore Membership</a>
-
+  <a href="#courses" class="btn">Explore Courses</a>
 </section>
 
 <section id="courses">
-
   <div class="section-title">
-
     <h2>Our Learning Programs</h2>
-
-    <p>Build your market knowledge step by step.</p>
-
+    <p>Choose individual courses or get the complete learning bundle.</p>
   </div>
 
   <div class="grid">
 
     <div class="card">
-
       <div class="icon">📊</div>
-
       <h3>Stock Market Basics</h3>
-
       <p>Understand market fundamentals, exchanges, orders and investing terminology.</p>
-
+      <div class="course-price">₹999</div>
+      <button onclick="buyCourse('Stock Market Basics',999)">Buy Now</button>
     </div>
 
     <div class="card">
-
       <div class="icon">📈</div>
-
       <h3>Technical Analysis</h3>
-
       <p>Learn charts, candlesticks, indicators and price action concepts.</p>
-
+      <div class="course-price">₹1,299</div>
+      <button onclick="buyCourse('Technical Analysis',1299)">Buy Now</button>
     </div>
 
     <div class="card">
-
       <div class="icon">⚖️</div>
-
       <h3>Risk Management</h3>
-
       <p>Study position sizing, stop losses and disciplined trading practices.</p>
-
+      <div class="course-price">₹999</div>
+      <button onclick="buyCourse('Risk Management',999)">Buy Now</button>
     </div>
 
     <div class="card">
-
       <div class="icon">🎯</div>
-
       <h3>F&O Education</h3>
-
       <p>Understand futures, options, expiry, option Greeks and derivatives risks.</p>
-
+      <div class="course-price">₹3,999</div>
+      <button onclick="buyCourse('F&O Education',3999)">Buy Now</button>
     </div>
 
   </div>
 
+  <div class="card combo">
+    <div class="tag">COMPLETE LEARNING BUNDLE</div>
+    <h2>All Courses Combo</h2>
+    <p>Get access to all four courses with one purchase.</p>
+    <div class="course-price">₹6,999</div>
+    <p>One-time payment · No monthly subscription</p>
+    <button onclick="buyCourse('All Courses Combo',6999)">Buy All Courses</button>
+  </div>
 </section>
 
 <section id="live">
-
   <div class="section-title">
-
     <h2>Learn Live. Learn Anytime.</h2>
-
     <p>Flexible learning through recorded lessons and live educational sessions.</p>
-
   </div>
 
   <div class="grid">
-
     <div class="card">
-
       <h3>🎥 Recorded Classes</h3>
-
       <p>Access course lessons and revisit learning materials at your convenience.</p>
-
     </div>
-
     <div class="card">
-
       <h3>🔴 Live Classes</h3>
-
       <p>Join scheduled educational sessions and ask questions during class.</p>
-
     </div>
-
     <div class="card">
-
       <h3>📱 Learn Anywhere</h3>
-
       <p>Access your academy through the website and planned mobile apps.</p>
-
     </div>
-
-  </div>
-
-</section>
-
-<section id="membership">
-
-  <div class="section-title">
-
-    <h2>All-Access Membership</h2>
-
-    <p>One membership for your learning journey.</p>
-
-  </div>
-
-  <div class="price">
-
-    <div class="tag">7-DAY FREE TRIAL OFFER</div>
-
-    <h2>₹999<span style="font-size:17px"> / month</span></h2>
-
-    <p>Everything in one membership</p>
-
-    <ul>
-
-      <li>All recorded courses</li>
-
-      <li>All scheduled live classes</li>
-
-      <li>Telugu and English learning</li>
-
-      <li>Access to learning materials</li>
-
-    </ul>
-
-    <button onclick="membershipMessage()">Start Free Trial</button>
-
-    <p style="font-size:12px">Trial and recurring billing will activate after payment integration.</p>
-
-  </div>
-
-</section>
-<section id="student-account" class="center">
-  <h2>Student Account</h2>
-  <p>Register or login to DK Trading Academy</p>
-
-  <div class="card">
-    <input type="text" id="studentName" placeholder="Full Name">
-    <input type="email" id="studentEmail" placeholder="Email Address">
-    <input type="password" id="studentPassword" placeholder="Password">
-
-    <button onclick="registerStudent()">Register</button>
-    <button onclick="loginStudent()">Login</button>
-
-    <div id="studentMessage"></div>
-    <div id="studentDashboard"></div>
   </div>
 </section>
+
 <section id="contact" class="center">
+  <div class="section-title">
+    <h2>Start Your Learning Journey</h2>
+    <p>Connect with DK Trading Academy.</p>
+  </div>
 
-  <h2>Start Your Learning Journey</h2>
-
-  <p style="color:var(--muted)">Join Dk Trading Academy and build your market knowledge.</p>
+  <div class="contact-details">
+    <p><strong style="color:var(--gold)">Academy:</strong> DK Trading Academy</p>
+    <p><strong style="color:var(--gold)">Contact Person:</strong> Penumalla Durga Krishna</p>
+    <p><strong style="color:var(--gold)">Email:</strong> durgapenumalla628@gmail.com</p>
+  </div>
 
   <a href="mailto:durgapenumalla628@gmail.com" class="btn">Contact Us</a>
-
 </section>
 
 </main>
 
 <footer>
-
   <strong style="color:var(--gold)">DK TRADING ACADEMY</strong>
-
   <p>Learn. Practice. Improve.</p>
-
   <p>Educational purposes only. No guaranteed returns or personalized investment advice.
-
   Trading, especially derivatives, involves substantial risk and may result in losses.</p>
-
-  <p>© 2026 Dk Trading Academy. All rights reserved.</p>
-
+  <p>© 2026 DK Trading Academy. All rights reserved.</p>
 </footer>
 
-<script>
+<!-- Register / Login popup -->
+<div class="modal" id="authModal">
+  <div class="modal-box">
+    <button class="close" onclick="closeAuth()" aria-label="Close">×</button>
 
-let telugu = false;
+    <h2 id="authTitle">Student Login</h2>
 
-function toggleLanguage() {
+    <form onsubmit="submitAuth(event)">
+      <input type="text" id="studentName"
+        placeholder="Full Name" autocomplete="name"
+        style="display:none">
 
-  telugu = !telugu;
+      <input type="email" id="studentEmail"
+        placeholder="Email Address" required autocomplete="email">
 
-  document.querySelectorAll("[data-en]").forEach(el => {
+      <input type="password" id="studentPassword"
+        placeholder="Password" required
+        minlength="6" autocomplete="current-password">
 
-    el.textContent = telugu ? el.dataset.te : el.dataset.en;
+      <button class="action" id="authSubmit" type="submit">Login</button>
+    </form>
 
-  });
+    <div id="studentMessage" role="status"></div>
+    <div id="studentDashboard"></div>
 
-  document.querySelector(".lang").textContent =
+    <div class="switch-text" id="authSwitch">
+      Don't have an account?
+      <a onclick="openAuth('register')">Register</a>
+    </div>
+  </div>
+</div>
 
-    telugu ? "English" : "తెలుగు";
-
-}
-
-function membershipMessage() {
-
-  alert("Thank you for your interest! Membership registration and secure payment are coming soon.");
-
-}
-
-</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+let telugu = false;
+let authMode = "login";
+
+function toggleLanguage() {
+  telugu = !telugu;
+
+  document.querySelectorAll("[data-en]").forEach(el => {
+    el.textContent = telugu ? el.dataset.te : el.dataset.en;
+  });
+
+  document.querySelector(".lang").textContent =
+    telugu ? "English" : "తెలుగు";
+}
+
+function openAuth(mode) {
+  authMode = mode;
+
+  document.getElementById("authModal").classList.add("show");
+  document.getElementById("studentMessage").textContent = "";
+  document.getElementById("studentDashboard").innerHTML = "";
+
+  const isRegister = mode === "register";
+
+  document.getElementById("authTitle").textContent =
+    isRegister ? "Create Student Account" : "Student Login";
+
+  document.getElementById("studentName").style.display =
+    isRegister ? "block" : "none";
+
+  document.getElementById("studentName").required = isRegister;
+
+  document.getElementById("studentPassword").autocomplete =
+    isRegister ? "new-password" : "current-password";
+
+  document.getElementById("authSubmit").textContent =
+    isRegister ? "Register" : "Login";
+
+  document.getElementById("authSwitch").innerHTML =
+    isRegister
+      ? 'Already have an account? <a onclick="openAuth(\\'login\\')">Login</a>'
+      : 'Don\\'t have an account? <a onclick="openAuth(\\'register\\')">Register</a>';
+}
+
+function closeAuth() {
+  document.getElementById("authModal").classList.remove("show");
+}
+
+document.getElementById("authModal").addEventListener("click", function(e) {
+  if (e.target === this) closeAuth();
+});
+
+function buyCourse(courseName, amount) {
+  alert(
+    courseName + " selected. Price: ₹" + amount +
+    ". Online payment setup is pending. Please check back soon."
+  );
+}
+
 const SUPABASE_URL = "https://labwytrvluddgezempyf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_vCScgztK_z-kiVMUgg3d8w_R8FuUcxx";
+const SUPABASE_KEY = "sb_publishable_vCScgztK_z-kiVMUgg3d8w_RFuUcxx";
 
 const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
 
-async function registerStudent() {
+async function submitAuth(event) {
+  event.preventDefault();
+
   const name = document.getElementById("studentName").value.trim();
   const email = document.getElementById("studentEmail").value.trim();
   const password = document.getElementById("studentPassword").value;
-
   const message = document.getElementById("studentMessage");
 
-  if (!name || !email || !password) {
-    message.innerText = "Please fill all details.";
-    return;
-  }
+  message.textContent = "Please wait...";
 
-  if (password.length < 6) {
-    message.innerText = "Password must be at least 6 characters.";
-    return;
-  }
-
-  const { data, error } = await db.auth.signUp({
-    email: email,
-    password: password,
-    options: {
-      data: { full_name: name },
-      emailRedirectTo: window.location.origin
+  if (authMode === "register") {
+    if (!name) {
+      message.textContent = "Please enter your full name.";
+      return;
     }
-  });
 
-  if (error) {
-    message.innerText = error.message;
-    return;
+    const {data,error} = await db.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {full_name:name},
+        emailRedirectTo:window.location.origin
+      }
+    });
+
+    if (error) {
+      message.textContent = error.message;
+      return;
+    }
+
+    message.textContent = data.session
+      ? "Registration successful!"
+      : "Registration successful. Please verify your email.";
+
+  } else {
+    const {data,error} = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      message.textContent = error.message;
+      return;
+    }
+
+    showDashboard(data.user);
   }
-
-  message.innerText = data.session
-    ? "Registration successful!"
-    : "Registration successful. Please verify your email.";
-}
-
-async function loginStudent() {
-  const email = document.getElementById("studentEmail").value.trim();
-  const password = document.getElementById("studentPassword").value;
-  const message = document.getElementById("studentMessage");
-
-  const { data, error } = await db.auth.signInWithPassword({
-    email: email,
-    password: password
-  });
-
-  if (error) {
-    message.innerText = error.message;
-    return;
-  }
-
-  showDashboard(data.user);
 }
 
 function showDashboard(user) {
-  document.getElementById("studentDashboard").innerHTML =
-    "<h3>Welcome to DK Trading Academy!</h3>" +
-    "<p>" + user.email + "</p>" +
-    '<button onclick="logoutStudent()">Logout</button>';
+  const dashboard = document.getElementById("studentDashboard");
+  dashboard.textContent = "";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Welcome to DK Trading Academy!";
+
+  const email = document.createElement("p");
+  email.textContent = user.email || "";
+
+  const logout = document.createElement("button");
+  logout.textContent = "Logout";
+  logout.onclick = logoutStudent;
+
+  dashboard.append(heading,email,logout);
 }
 
 async function logoutStudent() {
-  const { error } = await db.auth.signOut();
+  const {error} = await db.auth.signOut();
 
   if (error) {
-    document.getElementById("studentMessage").innerText = error.message;
+    document.getElementById("studentMessage").textContent = error.message;
     return;
   }
 
   document.getElementById("studentDashboard").innerHTML = "";
-  document.getElementById("studentMessage").innerText = "Logged out.";
+  document.getElementById("studentMessage").textContent = "Logged out.";
 }
 
-db.auth.getSession().then(({ data }) => {
-  if (data.session) {
+db.auth.getSession().then(({data,error}) => {
+  if (!error && data.session) {
     showDashboard(data.session.user);
   }
 });
 </script>
-</body>
 
+</body>
 </html>
