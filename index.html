@@ -384,15 +384,19 @@ footer {
     <div id="studentMessage" role="status"></div>
     <div id="studentDashboard"></div>
 
-    <div class="switch-text" id="authSwitch">
-      Don't have an account?
-      <a onclick="openAuth('register')">Register</a>
-    </div>
+  <div class="switch-text" id="authSwitch">
+    Don't have an account?
+    <a onclick="openAuth('register')">Register</a>
+  </div>
+
+  <div class="switch-text" id="forgotPasswordLink">
+    <a onclick="forgotPassword()">Forgot Password?</a>
+  </div>
+
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 let telugu = false;
 let authMode = "login";
@@ -458,7 +462,24 @@ function closeAuth() {
 document.getElementById("authModal").addEventListener("click", function(e) {
   if (e.target === this) closeAuth();
 });
+async function forgotPassword() {
+  const email = document.getElementById("studentEmail").value.trim();
 
+  if (!email) {
+    alert("Please enter your registered email address.");
+    return;
+  }
+
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Password reset link sent. Please check your email.");
+  }
+}
 async function buyCourse(courseId) {
   try {
     const { data: sessionData, error: sessionError } =
