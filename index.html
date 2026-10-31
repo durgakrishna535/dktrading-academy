@@ -624,7 +624,8 @@ async function submitAuth(event) {
       return;
     }
 
-    showDashboard(data.user);
+   message.textContent = "";
+showDashboard(data.user);
   }
 }
 async function updatePassword() {
