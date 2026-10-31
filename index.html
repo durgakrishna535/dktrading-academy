@@ -431,10 +431,24 @@ function openAuth(mode) {
   document.getElementById("authSubmit").textContent =
     isRegister ? "Register" : "Login";
 
-  document.getElementById("authSwitch").innerHTML =
-    isRegister
-      ? 'Already have an account? <a onclick="openAuth(\\'login\\')">Login</a>'
-      : 'Don\\'t have an account? <a onclick="openAuth(\\'register\\')">Register</a>';
+  const authSwitch = document.getElementById("authSwitch");
+
+authSwitch.innerHTML = "";
+
+const switchText = document.createTextNode(
+  isRegister
+    ? "Already have an account? "
+    : "Don't have an account? "
+);
+
+const link = document.createElement("a");
+link.textContent = isRegister ? "Login" : "Register";
+
+link.onclick = function() {
+  openAuth(isRegister ? "login" : "register");
+};
+
+authSwitch.append(switchText, link);
 }
 
 function closeAuth() {
