@@ -918,7 +918,6 @@ async function updatePassword() {
 
   await db.auth.signOut();
 }
-
 async function showDashboard(user) {
   document.getElementById("student-dashboard").style.display = "block";
 
@@ -931,43 +930,13 @@ async function showDashboard(user) {
   const email = document.createElement("p");
   email.textContent = user.email || "";
 
-  const grid = document.createElement("div");
-  grid.className = "dashboard-grid";
-
-  // Market Overview
-  const marketPanel = document.createElement("div");
-  marketPanel.className = "dashboard-panel";
-  marketPanel.innerHTML = `
-    <h3>Market Overview</h3>
-    <p>NIFTY 50</p>
-    <div class="dashboard-value">Live data coming soon</div>
-    <p>SENSEX</p>
-    <div class="dashboard-value">Live data coming soon</div>
-  `;
-
-  // Learning Progress
-  const progressPanel = document.createElement("div");
-  progressPanel.className = "dashboard-panel";
-  progressPanel.innerHTML = `
-    <h3>Learning Progress</h3>
-    <div class="dashboard-value" id="courseCount">0</div>
-    <p>Purchased Courses</p>
-    <p>Lesson progress tracking coming soon.</p>
-  `;
-
-  // Purchased Courses
-  const coursesPanel = document.createElement("div");
-  coursesPanel.className = "dashboard-panel";
   const coursesHeading = document.createElement("h3");
   coursesHeading.textContent = "My Purchased Courses";
 
   const courseList = document.createElement("div");
   courseList.textContent = "Loading courses...";
 
-  coursesPanel.append(coursesHeading, courseList);
-  grid.append(marketPanel, progressPanel, coursesPanel);
-
-  dashboard.append(heading, email, grid);
+  dashboard.append(heading, email, coursesHeading, courseList);
 
   const courseNames = {
     "stock-market-basics": "Stock Market Basics",
@@ -976,6 +945,7 @@ async function showDashboard(user) {
     "fo-education": "F&O Education"
   };
 
+  // YouTube video links can be added here later
   const courseVideos = {
     "stock-market-basics": "",
     "technical-analysis": "",
@@ -995,9 +965,6 @@ async function showDashboard(user) {
     console.error("Course loading error:", error);
     return;
   }
-
-  document.getElementById("courseCount").textContent =
-    data ? data.length : 0;
 
   if (!data || data.length === 0) {
     courseList.textContent = "No courses purchased yet.";
@@ -1029,11 +996,6 @@ async function showDashboard(user) {
       message.textContent = "Course videos coming soon.";
       card.appendChild(message);
     }
-
-    courseList.appendChild(card);
-  });
-}
-
 
       courseList.appendChild(card);
   });
