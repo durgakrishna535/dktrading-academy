@@ -568,6 +568,7 @@ async function buyCourse(courseId) {
   } catch (error) {
     console.error("Payment error:", error);
     alert("Unable to start payment. Please login and try again.");
+    alert("Payment Error: " + error.message);
   }
 }
 
