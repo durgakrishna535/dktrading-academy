@@ -665,7 +665,7 @@ async function updatePassword() {
   await db.auth.signOut();
 }
 
-function showDashboard(user) {
+async function showDashboard(user) {
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
 
@@ -675,13 +675,56 @@ function showDashboard(user) {
   const email = document.createElement("p");
   email.textContent = user.email || "";
 
+  const coursesHeading = document.createElement("h3");
+  coursesHeading.textContent = "My Purchased Courses";
+
+  const courseList = document.createElement("div");
+  courseList.textContent = "Loading courses...";
+
   const logout = document.createElement("button");
   logout.textContent = "Logout";
   logout.onclick = logoutStudent;
 
-  dashboard.append(heading,email,logout);
-}
+  dashboard.append(
+    heading,
+    email,
+    coursesHeading,
+    courseList,
+    logout
+  );
 
+  const courseNames = {
+    "stock-market-basics": "Stock Market Basics",
+    "technical-analysis": "Technical Analysis",
+    "risk-management": "Risk Management",
+    "fo-education": "F&O Education"
+  };
+
+  const { data, error } = await db
+    .from("course_enrollments")
+    .select("course_id")
+    .eq("user_id", user.id);
+
+  courseList.textContent = "";
+
+  if (error) {
+    courseList.textContent = "Unable to load courses. Please try again.";
+    console.error("Course loading error:", error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    courseList.textContent = "No courses purchased yet.";
+    return;
+  }
+
+  data.forEach((item) => {
+    const course = document.createElement("p");
+    course.textContent =
+      "✓ " + (courseNames[item.course_id] || item.course_id);
+    courseList.appendChild(course);
+  });
+}
 async function logoutStudent() {
   const {error} = await db.auth.signOut();
 
