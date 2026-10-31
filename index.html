@@ -383,7 +383,16 @@ footer {
 
     <div id="studentMessage" role="status"></div>
     <div id="studentDashboard"></div>
-
+<div id="resetPasswordBox" style="display:none;">
+  <h3>Set New Password</h3>
+  <input
+    type="password"
+    id="newPassword"
+    placeholder="Enter New Password"
+    minlength="6"
+  >
+  <button onclick="updatePassword()">Update Password</button>
+</div>
   <div class="switch-text" id="authSwitch">
     Don't have an account?
     <a onclick="openAuth('register')">Register</a>
