@@ -1307,6 +1307,7 @@ document.body.style.overflow = "hidden";
 }
   function closeStudentDetails() {
   document.getElementById("studentDetailsModal").classList.remove("show");
+    document.getElementById("adminPanelModal").classList.add("show");
 }
 
 function showStudentDetails(student) {
@@ -1330,7 +1331,7 @@ function showStudentDetails(student) {
     p.textContent = label + ": " + value;
     content.appendChild(p);
   });
-
+document.getElementById("adminPanelModal").classList.remove("show");
   document.getElementById("studentDetailsModal").classList.add("show");
 }
 async function loadAdminStudents() {
