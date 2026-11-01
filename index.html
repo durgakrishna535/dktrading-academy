@@ -997,7 +997,6 @@ async function buyCourse(courseId) {
       openAuth("login");
       return;
     }
-
     const { data: order, error: orderError } =
       await db.functions.invoke("create-razorpay-order", {
         body: { courseId },
@@ -1033,14 +1032,27 @@ async function buyCourse(courseId) {
 
   if (user) {
     await showDashboard(user);
+    console.log("Dashboard user:", user);
   }
 
   alert("Payment successful! Course enrollment completed.");
 }
         } catch (error) {
-          console.error(error);
-          alert("Payment verification failed. Please contact support before trying again.");
-        }
+  console.error("Verification error:", error);
+
+  let details = error.message || "Unknown error";
+
+  if (error.context) {
+    try {
+      const response = await error.context.clone().json();
+      details = response.error || JSON.stringify(response);
+    } catch {
+      details = error.message;
+    }
+  }
+
+  alert("Payment verification failed: " + details);
+}
       },
 
       modal: {
