@@ -155,17 +155,34 @@ section {padding:75px 8%}
   line-height:2;
 }
 footer {
-  text-align:center;
-  padding:35px 8%;
-  border-top:1px solid #26364c;
-  color:var(--muted);
-  line-height:1.8;
+  text-align: center;
+  padding: 35px 8%;
+  border-top: 1px solid #26364c;
+  color: var(--muted);
+  line-height: 1.8;
 }
+
 .lang {
-  background:transparent;
-  color:var(--gold);
-  border:1px solid var(--gold);
-  padding:9px 12px;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 9px 12px;
+}
+  }
+
+/* Mobile Footer */
+@media (max-width: 600px) {
+  footer {
+    padding: 25px 5%;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+
+  .lang {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
 }
 
 /* Login and registration popup */
