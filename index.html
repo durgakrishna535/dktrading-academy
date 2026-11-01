@@ -619,7 +619,7 @@ footer {
 </div>
 
 <div id="studentNav" style="display:none;">
-  <button onclick="document.getElementById('studentProfile').scrollIntoView({behavior:'smooth'});">
+<button onclick="showStudentProfile()">
   My Profile
 </button>
   <details>
@@ -741,11 +741,6 @@ footer {
 
   <div class="card">
     <div id="studentDashboard"></div>
-<div id="studentProfile" class="dashboard-panel" style="margin-top:16px;">
-  <h3>👤 My Profile</h3>
-  <p><strong>Name:</strong> <span id="profileName">Loading...</span></p>
-  <p><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
-</div>
     <div class="dashboard-grid">
       <div class="dashboard-panel">
         <h3>🎓 Learning Progress</h3>
@@ -1106,11 +1101,6 @@ async function showDashboard(user) {
   courseList.textContent = "Loading courses...";
 
   dashboard.append(heading, email, coursesHeading, courseList);
-document.getElementById("profileName").textContent =
-  user.user_metadata?.full_name || "Not provided";
-
-document.getElementById("profileEmail").textContent =
-  user.email || "Not available";
   const courseNames = {
     "stock-market-basics": "Stock Market Basics",
     "technical-analysis": "Technical Analysis",
@@ -1219,6 +1209,19 @@ db.auth.onAuthStateChange((event, session) => {
     document.getElementById('mainNav').classList.remove('mobile-open');
   });
 });
+  function showStudentProfile() {
+  const user = db.auth.getUser();
+  user.then(({ data, error }) => {
+    if (error || !data.user) return;
+
+    const profile = data.user;
+    alert(
+      "My Profile\n\nName: " +
+      (profile.user_metadata?.full_name || "Not provided") +
+      "\nEmail: " + (profile.email || "Not available")
+    );
+  });
+}
 </script>
 </body>
 </html>
