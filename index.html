@@ -1478,6 +1478,30 @@ async function renderAcademyUpdates(container, studentMode = false) {
   const announcements = announcementsResult.data || [];
   const liveClasses = liveResult.data || [];
 
+  let studentLiveAccess = null;
+  let studentLiveAccessError = false;
+  if (studentMode) {
+    const { data: sessionData, error: sessionError } = await db.auth.getSession();
+    const student = sessionData?.session?.user;
+    if (sessionError) {
+      studentLiveAccessError = true;
+    } else if (student) {
+      const { data: enrollmentRows, error: enrollmentError } = await db
+        .from("course_enrollments")
+        .select("course_id,created_at")
+        .eq("user_id", student.id);
+      if (enrollmentError) {
+        studentLiveAccessError = true;
+      } else {
+        const activeRows = (enrollmentRows || []).filter(row => isCourseAccessActive(row.created_at));
+        studentLiveAccess = {
+          active: new Set(activeRows.map(row => row.course_id)),
+          hadEnrollment: (enrollmentRows || []).length > 0
+        };
+      }
+    }
+  }
+
   const announcementHeading = document.createElement("h3");
   announcementHeading.textContent = studentMode ? "📢 Announcements" : "Latest Notices";
   container.appendChild(announcementHeading);
@@ -1525,6 +1549,20 @@ async function renderAcademyUpdates(container, studentMode = false) {
       const join = document.createElement("button");
       join.type = "button";
       join.textContent = "Join Live Class";
+      if (studentMode && item.is_free !== true) {
+        if (studentLiveAccessError) {
+          join.disabled = true;
+          join.textContent = "Access check unavailable";
+        } else if (studentLiveAccess) {
+          const hasActiveAccess = studentLiveAccess.active.has("all-courses-combo") ||
+            (item.required_course_id && studentLiveAccess.active.has(item.required_course_id));
+          if (!hasActiveAccess) {
+            join.disabled = true;
+            const hadMatchingPurchase = studentLiveAccess.hadEnrollment;
+            join.textContent = hadMatchingPurchase ? "Course access expired" : "Purchase required";
+          }
+        }
+      }
       join.onclick = async () => {
         join.disabled = true;
         try {
@@ -1536,11 +1574,13 @@ async function renderAcademyUpdates(container, studentMode = false) {
             return;
           }
           const { data: enrollments, error: enrollmentError } = await db
-            .from("course_enrollments").select("course_id").eq("user_id", user.id);
+            .from("course_enrollments").select("course_id,created_at").eq("user_id", user.id);
           if (enrollmentError) throw enrollmentError;
-          const owned = (enrollments || []).map(row => row.course_id);
-          const allowed = item.is_free === true || owned.includes("all-courses-combo") ||
-            (item.required_course_id && owned.includes(item.required_course_id));
+          const activeOwned = (enrollments || [])
+            .filter(row => isCourseAccessActive(row.created_at))
+            .map(row => row.course_id);
+          const allowed = item.is_free === true || activeOwned.includes("all-courses-combo") ||
+            (item.required_course_id && activeOwned.includes(item.required_course_id));
           if (!allowed) {
             const course = academyCourseCache.find(row => row.course_id === item.required_course_id);
             alert("Please purchase " + (course?.title || "the required course") + " to join this live class.");
