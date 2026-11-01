@@ -1156,25 +1156,31 @@ async function updatePassword() {
 
   await db.auth.signOut();
 }
+const courseLessons = {
+  "stock-market-basics": ["Introduction to the Stock Market", "Exchanges and Market Participants", "Order Types and Trading Basics", "Demat and Trading Accounts", "Basic Investing Terminology"],
+  "technical-analysis": ["Introduction to Charts", "Candlestick Basics", "Support and Resistance", "Trendlines and Chart Patterns", "Technical Indicators"],
+  "risk-management": ["Why Risk Management Matters", "Position Sizing", "Stop-Loss Planning", "Risk-to-Reward Ratio", "Trading Psychology and Discipline"],
+  "fo-education": ["Introduction to Futures and Options", "Call and Put Options", "Option Expiry and Moneyness", "Option Greeks Overview", "F&O Risks and Risk Controls"]
+};
+
 async function showDashboard(user) {
   document.getElementById("student-dashboard").style.display = "block";
-
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
 
   const heading = document.createElement("h3");
   heading.textContent = "Welcome to DK Trading Academy!";
-
   const email = document.createElement("p");
   email.textContent = user.email || "";
-
   const coursesHeading = document.createElement("h3");
   coursesHeading.textContent = "My Purchased Courses";
-
+  const summary = document.createElement("p");
+  summary.id = "overallLearningProgress";
+  summary.textContent = "Loading your learning progress...";
   const courseList = document.createElement("div");
   courseList.textContent = "Loading courses...";
+  dashboard.append(heading, email, coursesHeading, summary, courseList);
 
-  dashboard.append(heading, email, coursesHeading, courseList);
   const courseNames = {
     "stock-market-basics": "Stock Market Basics",
     "technical-analysis": "Technical Analysis",
@@ -1182,62 +1188,148 @@ async function showDashboard(user) {
     "fo-education": "F&O Education"
   };
 
-  // YouTube video links can be added here later
-  const courseVideos = {
-    "stock-market-basics": "",
-    "technical-analysis": "",
-    "risk-management": "",
-    "fo-education": ""
-  };
-
-  const { data, error } = await db
+  const { data: enrollments, error: enrollmentError } = await db
     .from("course_enrollments")
     .select("course_id")
     .eq("user_id", user.id);
 
   courseList.textContent = "";
-
-  if (error) {
+  if (enrollmentError) {
     courseList.textContent = "Unable to load courses. Please try again.";
-    console.error("Course loading error:", error);
+    console.error("Course loading error:", enrollmentError);
     return;
   }
-
-  if (!data || data.length === 0) {
+  if (!enrollments || enrollments.length === 0) {
     courseList.textContent = "No courses purchased yet.";
+    summary.textContent = "No course progress yet.";
     return;
   }
 
-  data.forEach((item) => {
+  const { data: progressRows, error: progressError } = await db
+    .from("lesson_progress")
+    .select("course_id, lesson_id, completed")
+    .eq("user_id", user.id);
+
+  const progressReady = !progressError;
+  if (progressError) {
+    console.error("Lesson progress loading error:", progressError);
+    summary.textContent = "Progress setup is pending. Please contact the academy admin.";
+  }
+
+  let totalLessons = 0;
+  let completedLessons = 0;
+
+  for (const item of enrollments) {
     const courseId = item.course_id;
+    const lessons = courseLessons[courseId];
+    if (!lessons) continue;
 
     const card = document.createElement("div");
     card.className = "card";
+    card.style.marginBottom = "18px";
 
     const title = document.createElement("h3");
     title.textContent = "✓ " + (courseNames[courseId] || courseId);
-    card.appendChild(title);
+    const progressText = document.createElement("p");
+    const track = document.createElement("div");
+    track.className = "progress-track";
+    const fill = document.createElement("div");
+    fill.className = "progress-fill";
+    track.appendChild(fill);
+    const lessonList = document.createElement("div");
+    card.append(title, progressText, track, lessonList);
 
-    const videoUrl = courseVideos[courseId];
+    const courseProgress = (progressRows || []).filter(row => row.course_id === courseId && row.completed);
+    const completedSet = new Set(courseProgress.map(row => row.lesson_id));
+    totalLessons += lessons.length;
+    completedLessons += lessons.filter((_, index) => completedSet.has(String(index + 1))).length;
 
-    if (videoUrl) {
-      const video = document.createElement("iframe");
-      video.src = videoUrl;
-      video.width = "100%";
-      video.height = "315";
-      video.allowFullscreen = true;
-      video.title = title.textContent;
-      card.appendChild(video);
-    } else {
-      const message = document.createElement("p");
-      message.textContent = "Course videos coming soon.";
-      card.appendChild(message);
+    const renderProgress = () => {
+      const done = lessons.filter((_, index) => completedSet.has(String(index + 1))).length;
+      const percent = Math.round(done / lessons.length * 100);
+      progressText.textContent = done + " of " + lessons.length + " lessons completed (" + percent + "%)";
+      fill.style.width = percent + "%";
+      const overall = document.getElementById("overallLearningProgress");
+      if (overall) {
+        const allDone = document.querySelectorAll("[data-course-lesson-count]");
+        let doneTotal = 0, lessonTotal = 0;
+        allDone.forEach(node => {
+          doneTotal += Number(node.dataset.completed || 0);
+          lessonTotal += Number(node.dataset.courseLessonCount || 0);
+        });
+        overall.textContent = lessonTotal
+          ? "Overall learning progress: " + Math.round(doneTotal / lessonTotal * 100) + "% (" + doneTotal + "/" + lessonTotal + " lessons)"
+          : "Your learning progress will appear here.";
+      }
+    };
+    progressText.dataset.courseLessonCount = String(lessons.length);
+    progressText.dataset.completed = String(completedSet.size);
+    progressText.setAttribute("data-course-lesson-count", String(lessons.length));
+    renderProgress();
+
+    lessons.forEach((lessonName, index) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.gap = "12px";
+      row.style.flexWrap = "wrap";
+      row.style.padding = "12px 0";
+      row.style.borderBottom = "1px solid #263326";
+
+      const label = document.createElement("span");
+      label.textContent = "Lesson " + (index + 1) + ": " + lessonName;
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "outline-btn";
+      action.textContent = completedSet.has(String(index + 1)) ? "Completed ✓" : "Mark Complete";
+      action.disabled = !progressReady;
+      action.onclick = async () => {
+        action.disabled = true;
+        const lessonId = String(index + 1);
+        const wasCompleted = completedSet.has(lessonId);
+        const { error: saveError } = await db.from("lesson_progress").upsert({
+          user_id: user.id,
+          course_id: courseId,
+          lesson_id: lessonId,
+          completed: !wasCompleted,
+          completed_at: !wasCompleted ? new Date().toISOString() : null
+        }, { onConflict: "user_id,course_id,lesson_id" });
+
+        if (saveError) {
+          console.error("Unable to save lesson progress:", saveError);
+          alert("Progress could not be saved. Please try again.");
+        } else {
+          if (wasCompleted) completedSet.delete(lessonId);
+          else completedSet.add(lessonId);
+          action.textContent = completedSet.has(lessonId) ? "Completed ✓" : "Mark Complete";
+          progressText.dataset.completed = String(completedSet.size);
+          renderProgress();
+        }
+        action.disabled = false;
+      };
+      row.append(label, action);
+      lessonList.appendChild(row);
+    });
+
+    if (!progressReady) {
+      const note = document.createElement("p");
+      note.textContent = "Lesson progress will become available after the database setup is completed.";
+      card.appendChild(note);
     }
+    courseList.appendChild(card);
+  }
 
-      courseList.appendChild(card);
-  });
+  const overall = document.getElementById("overallLearningProgress");
+  if (progressReady && overall) {
+    const allCounts = Array.from(courseList.querySelectorAll("[data-course-lesson-count]"));
+    const total = allCounts.reduce((sum, node) => sum + Number(node.dataset.courseLessonCount), 0);
+    const done = allCounts.reduce((sum, node) => sum + Number(node.dataset.completed || 0), 0);
+    overall.textContent = total
+      ? "Overall learning progress: " + Math.round(done / total * 100) + "% (" + done + "/" + total + " lessons)"
+      : "Your learning progress will appear here.";
+  }
 }
-
 async function logoutStudent() {
   const {error} = await db.auth.signOut();
 
