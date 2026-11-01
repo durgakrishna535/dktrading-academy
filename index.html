@@ -830,6 +830,16 @@ footer {
   </div>
 </div>
   <!-- Admin Panel -->
+  <!-- Student Details Modal -->
+<div class="modal" id="studentDetailsModal" style="z-index:110;">
+  <div class="modal-box" style="max-width:500px;">
+    <button class="close" onclick="closeStudentDetails()">×</button>
+    <h2>Student Details</h2>
+    <div id="studentDetailsContent">
+      Loading...
+    </div>
+  </div>
+</div>
 <div class="modal" id="adminModal">
   <div class="modal-box" style="max-width:700px; max-height:85vh; overflow-y:auto;">
     <button class="close" onclick="closeAdminPanel()">×</button>
@@ -1295,6 +1305,34 @@ adminContent.innerHTML = `
 document.body.style.overflow = "hidden";
   document.getElementById("adminModal").classList.add("show");
 }
+  function closeStudentDetails() {
+  document.getElementById("studentDetailsModal").classList.remove("show");
+}
+
+function showStudentDetails(student) {
+  const content = document.getElementById("studentDetailsContent");
+  content.innerHTML = "";
+
+  const details = [
+    ["Student Number", student.student_number || "N/A"],
+    ["Student Name", student.student_name || "Name not provided"],
+    ["Email", student.student_email || "N/A"],
+    ["Registration Date", student.registration_date
+  ? new Date(student.registration_date).toLocaleDateString("en-IN")
+  : "N/A"],
+    ["Purchased Courses", student.purchased_courses?.length
+      ? student.purchased_courses.join(", ")
+      : "None"]
+  ];
+
+  details.forEach(([label, value]) => {
+    const p = document.createElement("p");
+    p.textContent = label + ": " + value;
+    content.appendChild(p);
+  });
+
+  document.getElementById("studentDetailsModal").classList.add("show");
+}
 async function loadAdminStudents() {
   const list = document.getElementById("adminStudentList");
   list.textContent = "Loading students...";
@@ -1343,15 +1381,7 @@ studentId.textContent = "Student Number: " + student.student_number;
 detailsButton.textContent = "View Full Details";
 
 detailsButton.onclick = () => {
-  alert(
-    "Student Name: " + student.student_name +
-    "\nEmail: " + student.student_email +
-    "\nStudent Number: " + student.student_number +
-    "\nPurchased Courses: " +
-    (student.purchased_courses.length
-      ? student.purchased_courses.join(", ")
-      : "None")
-  );
+  showStudentDetails(student);
 };
 
 card.appendChild(detailsButton);
