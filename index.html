@@ -1088,6 +1088,11 @@ db.auth.onAuthStateChange((event, session) => {
   const nav = document.getElementById("mainNav");
   nav.classList.toggle("mobile-open");
 }
+  document.querySelectorAll('#mainNav a').forEach(link => {
+  link.addEventListener('click', () => {
+    document.getElementById('mainNav').classList.remove('mobile-open');
+  });
+});
 </script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </body>
