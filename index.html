@@ -210,6 +210,51 @@ section {padding:75px 8%}
   box-shadow:0 0 30px rgba(217,180,92,.14);
 }
 .combo .course-price {font-size:45px}
+
+.student-course-card { border-left:4px solid var(--student-course-accent); }
+.student-course-card h3 { color:var(--student-course-accent); }
+.student-course-card .progress-fill { background:var(--student-course-accent); }
+.student-course-stock { --student-course-accent:#38bdf8; }
+.student-course-technical { --student-course-accent:#c084fc; }
+.student-course-risk { --student-course-accent:#fb923c; }
+.student-course-fo { --student-course-accent:#f472b6; }
+
+/* Individual course colour identities */
+.course-card { border-top:4px solid var(--course-accent); }
+.course-card h3 { color:var(--course-accent); }
+.course-card p { color:var(--course-text); }
+.course-card .course-price { color:var(--course-accent); }
+.course-stock { --course-accent:#38bdf8; --course-text:#dbeafe; }
+.course-technical { --course-accent:#c084fc; --course-text:#f3e8ff; }
+.course-risk { --course-accent:#fb923c; --course-text:#ffedd5; }
+.course-fo { --course-accent:#f472b6; --course-text:#fce7f3; }
+.course-combo { border-top:4px solid #facc15; }
+.course-combo h2,.course-combo .course-price { color:#facc15; }
+.course-combo p { color:#fef3c7; }
+
+/* Admin panel: readable, differentiated metric and amount colours */
+#adminContent > .card:nth-child(1) h3 { color:#60a5fa; }
+#adminContent > .card:nth-child(1) .course-price { color:#93c5fd; }
+#adminContent > .card:nth-child(2) h3 { color:#a78bfa; }
+#adminContent > .card:nth-child(2) .course-price { color:#c4b5fd; }
+#adminContent > .card:nth-child(3) h3 { color:#fb923c; }
+#adminContent > .card:nth-child(3) .course-price { color:#fdba74; }
+#adminContent > .card:nth-child(4) h3 { color:#34d399; }
+#adminContent > .card:nth-child(4) .course-price { color:#6ee7b7; }
+#adminContent > .card:nth-child(5) h3 { color:#f472b6; }
+#adminContent > .card:nth-child(5) .course-price { color:#f9a8d4; }
+#adminContent #adminPaymentHistory table th { color:#7dd3fc; }
+#adminContent #adminPaymentHistory table td:nth-child(5) {
+  color:#facc15;
+  font-weight:700;
+}
+#adminContent #adminPaymentHistory table td:nth-child(6) {
+  color:#86efac;
+  font-weight:700;
+}
+#adminContent #adminMonthlyRevenueChart,
+#adminContent #adminCourseSalesChart { color:#dbeafe; }
+#adminContent #adminPaymentCount { color:#a5b4fc; }
 .center {text-align:center}
 .contact-details {
   color:var(--muted);
@@ -727,7 +772,7 @@ footer {
 
   <div class="grid">
 
-    <div class="card">
+    <div class="card course-card course-stock">
       <div class="icon">📊</div>
       <h3>Stock Market Basics</h3>
       <p>Understand market fundamentals, exchanges, orders and investing terminology.</p>
@@ -735,7 +780,7 @@ footer {
       <button onclick="buyCourse('stock-market-basics')">Buy Now</button>
     </div>
 
-    <div class="card">
+    <div class="card course-card course-technical">
       <div class="icon">📈</div>
       <h3>Technical Analysis</h3>
       <p>Learn charts, candlesticks, indicators and price action concepts.</p>
@@ -743,7 +788,7 @@ footer {
       <button onclick="buyCourse('technical-analysis')">Buy Now</button>
     </div>
 
-    <div class="card">
+    <div class="card course-card course-risk">
       <div class="icon">⚖️</div>
       <h3>Risk Management</h3>
       <p>Study position sizing, stop losses and disciplined trading practices.</p>
@@ -751,7 +796,7 @@ footer {
       <button onclick="buyCourse('risk-management')">Buy Now</button>
     </div>
 
-    <div class="card">
+    <div class="card course-card course-fo">
       <div class="icon">🎯</div>
       <h3>F&O Education</h3>
       <p>Understand futures, options, expiry, option Greeks and derivatives risks.</p>
@@ -761,7 +806,7 @@ footer {
 
   </div>
 
-  <div class="card combo">
+  <div class="card combo course-combo">
     <div class="tag">COMPLETE LEARNING BUNDLE</div>
     <h2>All Courses Combo</h2>
     <p>Get access to all four courses with one purchase.</p>
@@ -1284,7 +1329,13 @@ async function showDashboard(user) {
     if (!lessons) continue;
 
     const card = document.createElement("div");
-    card.className = "card";
+    const courseColourClass = {
+      "stock-market-basics": "student-course-stock",
+      "technical-analysis": "student-course-technical",
+      "risk-management": "student-course-risk",
+      "fo-education": "student-course-fo"
+    }[courseId] || "";
+    card.className = "card student-course-card " + courseColourClass;
     card.style.marginBottom = "18px";
 
     const title = document.createElement("h3");
