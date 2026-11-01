@@ -1863,10 +1863,10 @@ async function loadAcademyLessons(courseId) {
   const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
   if(error){console.error("Dynamic lessons:",error);return null;}
   const lessons=(!data||!data.length)?(defaultCourseLessons[courseId]||[]).map((title,index)=>({lesson_number:index+1,title})):data;
-  const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url").eq("course_id",courseId);
+  const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url,video_storage_path").eq("course_id",courseId);
   if(re){console.error("Private lesson resources:",re);return lessons.map(x=>({...x,video_url:null}));}
-  const map=new Map((resources||[]).map(x=>[Number(x.lesson_number),x.video_url||null]));
-  return lessons.map(x=>({...x,video_url:map.get(Number(x.lesson_number))||null}));
+  const map=new Map((resources||[]).map(x=>[Number(x.lesson_number),{video_url:x.video_url||null,video_storage_path:x.video_storage_path||null}]));
+  return lessons.map(x=>({...x,...(map.get(Number(x.lesson_number))||{video_url:null,video_storage_path:null})}));
 }
 
 async function loadStudentPdfLibrary(enrollments){
@@ -2007,7 +2007,7 @@ async function showDashboard(user) {
 
       const label = document.createElement("span");
       label.textContent = "Lesson " + lessonNumber + ": " + lessonName;
-      if(lessonItem.video_url){const watch=document.createElement("button");watch.type="button";watch.textContent="▶ Watch Lesson";watch.onclick=()=>{const safe=makeExternalLink(lessonItem.video_url,"Open video");if(!safe){alert("Invalid video URL.");return;}const opened=window.open(safe.href,"_blank","noopener,noreferrer");if(!opened)alert("Allow pop-ups to watch the video.");};row.appendChild(watch);}
+      if(lessonItem.video_url||lessonItem.video_storage_path){const watch=document.createElement("button");watch.type="button";watch.textContent="▶ Watch Lesson";watch.onclick=async()=>{watch.disabled=true;let target=lessonItem.video_url;if(lessonItem.video_storage_path){const {data,error}=await db.storage.from("academy-videos").createSignedUrl(lessonItem.video_storage_path,60);if(error){alert("Video access failed: "+error.message);watch.disabled=false;return;}target=data.signedUrl;}const safe=makeExternalLink(target,"Open video");if(!safe){alert("Invalid video URL.");watch.disabled=false;return;}const opened=window.open(safe.href,"_blank","noopener,noreferrer");if(!opened)alert("Allow pop-ups to watch the video.");watch.disabled=false;};row.appendChild(watch);}
       const action = document.createElement("button");
       action.type = "button";
       action.className = completedSet.has(lessonNumber) ? "lesson-completed-btn" : "lesson-pending-btn";
@@ -2351,30 +2351,32 @@ async function loadAdminLessonManager() {
  const {data:courses,error}=await db.from("academy_courses").select("course_id,title").order("display_order");if(error){box.textContent=error.message;return;}
  box.textContent="";const choices=(courses||[]).filter(c=>c.course_id!=="all-courses-combo");
  const course=document.createElement("select");course.style.width="100%";choices.forEach(c=>{const o=document.createElement("option");o.value=c.course_id;o.textContent=c.title;course.appendChild(o);});
- const newTitle=document.createElement("input");newTitle.placeholder="New lesson title";newTitle.style.width="100%";
- const newUrl=document.createElement("input");newUrl.type="url";newUrl.placeholder="Optional video URL";newUrl.style.width="100%";
+ const newTitle=document.createElement("input");newTitle.placeholder="New lesson title";newTitle.style.width="100%";const newUrl=document.createElement("input");newUrl.type="url";newUrl.placeholder="Option 1: Video URL";newUrl.style.width="100%";
+ const newFile=document.createElement("input");newFile.type="file";newFile.accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";newFile.style.width="100%";
  const add=document.createElement("button");add.textContent="Add lesson";const status=document.createElement("p"),list=document.createElement("div");
- const render=async()=>{
-  list.textContent="Loading lessons...";
-  let {data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number");
-  if(!e&&!lessons?.length){const seed=(defaultCourseLessons[course.value]||[]).map((title,index)=>({course_id:course.value,lesson_number:index+1,title,is_published:true}));if(seed.length){const ins=await db.from("academy_course_lessons").insert(seed);if(ins.error){list.textContent=ins.error.message;return;}({data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number"));}}
-  if(e){list.textContent=e.message;return;}
-  const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url").eq("course_id",course.value);if(re){list.textContent=re.message;return;}
-  const map=new Map((resources||[]).map(r=>[Number(r.lesson_number),r.video_url||""]));list.textContent="";
-  (lessons||[]).forEach(item=>{
-   const row=document.createElement("div");row.className="card";row.style.margin="10px 0";const h=document.createElement("p");h.textContent="Lesson "+item.lesson_number;
-   const title=document.createElement("input");title.value=item.title||"";title.style.width="100%";
-   const url=document.createElement("input");url.type="url";url.value=map.get(Number(item.lesson_number))||"";url.placeholder="Video URL (https://...)";url.style.width="100%";
-   const label=document.createElement("label"),pub=document.createElement("input");pub.type="checkbox";pub.checked=!!item.is_published;label.append(pub,document.createTextNode(" Published"));
-   const save=document.createElement("button");save.textContent="Save";const del=document.createElement("button");del.textContent="Delete";del.style.marginLeft="8px";del.style.background="#b91c1c";const msg=document.createElement("span");
-   save.onclick=async()=>{save.disabled=true;const {error:ue}=await db.from("academy_course_lessons").update({title:title.value.trim(),is_published:pub.checked}).eq("id",item.id);let err=ue;const value=url.value.trim();if(!err&&value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{err=new Error("Enter a valid http/https URL.");}}if(!err){const {error:ve}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:item.lesson_number,video_url:value||null,updated_at:new Date().toISOString()},{onConflict:"course_id,lesson_number"});err=ve;}msg.textContent=err?" "+err.message:" Saved";save.disabled=false;};
-   del.onclick=async()=>{if(!confirm("Delete this lesson?"))return;const {error:de}=await db.from("academy_course_lessons").delete().eq("id",item.id);if(de){msg.textContent=de.message;return;}await db.from("academy_lesson_resources").delete().eq("course_id",course.value).eq("lesson_number",item.lesson_number);render();};
-   row.append(h,title,url,label,save,del,msg);list.appendChild(row);
-  });
- };
+ const render=async()=>{list.textContent="Loading lessons...";let {data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number");
+ if(!e&&!lessons?.length){const seed=(defaultCourseLessons[course.value]||[]).map((title,index)=>({course_id:course.value,lesson_number:index+1,title,is_published:true}));if(seed.length){const ins=await db.from("academy_course_lessons").insert(seed);if(ins.error){list.textContent=ins.error.message;return;}({data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number"));}}
+ if(e){list.textContent=e.message;return;}const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url,video_storage_path").eq("course_id",course.value);if(re){list.textContent=re.message;return;}const map=new Map((resources||[]).map(r=>[Number(r.lesson_number),r]));list.textContent="";
+ (lessons||[]).forEach(item=>{const old=map.get(Number(item.lesson_number))||{};const row=document.createElement("div");row.className="card";row.style.margin="10px 0";const h=document.createElement("p");h.textContent="Lesson "+item.lesson_number;const title=document.createElement("input");title.value=item.title||"";title.style.width="100%";
+ const current=document.createElement("small");current.textContent=old.video_storage_path?"Current video: uploaded file":old.video_url?"Current video: URL":"Current video: none";
+ const url=document.createElement("input");url.type="url";url.value=old.video_url||"";url.placeholder="Option 1: Paste video URL";url.style.width="100%";
+ const file=document.createElement("input");file.type="file";file.accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";file.style.width="100%";
+ const choice=document.createElement("p");choice.textContent="Option 2: Upload video file (MP4 / WebM / MOV, max 100 MB)";
+ const rmLabel=document.createElement("label"),rm=document.createElement("input");rm.type="checkbox";rmLabel.append(rm,document.createTextNode(" Remove current video"));
+ const pubLabel=document.createElement("label"),pub=document.createElement("input");pub.type="checkbox";pub.checked=!!item.is_published;pubLabel.append(pub,document.createTextNode(" Lesson published"));
+ const save=document.createElement("button");save.textContent="Save lesson";const del=document.createElement("button");del.textContent="Delete lesson";del.style.marginLeft="8px";del.style.background="#b91c1c";const msg=document.createElement("span");
+ save.onclick=async()=>{const selected=file.files?.[0],value=url.value.trim();if(selected&&value){msg.textContent=" Choose URL or file, not both.";return;}if(selected&&(!["video/mp4","video/webm","video/quicktime"].includes(selected.type)||selected.size>100*1024*1024)){msg.textContent="Use MP4, WebM or MOV up to 100 MB.";return;}if(value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{msg.textContent="Enter valid http/https URL.";return;}}
+ save.disabled=true;msg.textContent=" Saving...";const {error:ue}=await db.from("academy_course_lessons").update({title:title.value.trim(),is_published:pub.checked}).eq("id",item.id);let err=ue,newPath=null;
+ if(!err&&selected){const path=course.value+"/"+item.lesson_number+"/"+crypto.randomUUID()+"-"+selected.name.replace(/[^a-zA-Z0-9._-]/g,"_");const {error:up}=await db.storage.from("academy-videos").upload(path,selected,{contentType:selected.type});if(up)err=up;else newPath=path;}
+ if(!err&&(selected||value||rm.checked)){const {error:re2}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:item.lesson_number,video_url:selected?null:(value||null),video_storage_path:newPath,updated_at:new Date().toISOString()},{onConflict:"course_id,lesson_number"});if(re2)err=re2;else if(old.video_storage_path)await db.storage.from("academy-videos").remove([old.video_storage_path]);}
+ msg.textContent=err?" "+err.message:" Saved";save.disabled=false;if(!err)render();};
+ del.onclick=async()=>{if(!confirm("Delete this lesson and its video?"))return;const {error:de}=await db.from("academy_course_lessons").delete().eq("id",item.id);if(de){msg.textContent=de.message;return;}await db.from("academy_lesson_resources").delete().eq("course_id",course.value).eq("lesson_number",item.lesson_number);if(old.video_storage_path)await db.storage.from("academy-videos").remove([old.video_storage_path]);render();};
+ row.append(h,title,current,document.createTextNode("Choose ONE video source:"),url,choice,file,rmLabel,pubLabel,save,del,msg);list.appendChild(row);});};
  course.onchange=render;
- add.onclick=async()=>{const title=newTitle.value.trim(),url=newUrl.value.trim();if(!title){status.textContent="Enter lesson title.";return;}if(url){try{const u=new URL(url);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{status.textContent="Invalid video URL.";return;}}const {data:rows,error:e}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",course.value).order("lesson_number",{ascending:false}).limit(1);if(e){status.textContent=e.message;return;}const next=Number(rows?.[0]?.lesson_number||0)+1;const {error:ie}=await db.from("academy_course_lessons").insert({course_id:course.value,lesson_number:next,title,is_published:true});if(ie){status.textContent=ie.message;return;}if(url){const {error:ve}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:next,video_url:url},{onConflict:"course_id,lesson_number"});if(ve){status.textContent="Lesson saved; video failed: "+ve.message;render();return;}}newTitle.value="";newUrl.value="";status.textContent="Lesson added.";render();};
- box.append(course,newTitle,newUrl,add,status,list);await render();
+ add.onclick=async()=>{const name=newTitle.value.trim(),value=newUrl.value.trim(),file=newFile.files?.[0];if(!name){status.textContent="Enter lesson title.";return;}if(value&&file){status.textContent="Choose URL or file, not both.";return;}if(value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{status.textContent="Invalid video URL.";return;}}if(file&&(!["video/mp4","video/webm","video/quicktime"].includes(file.type)||file.size>100*1024*1024)){status.textContent="Use MP4, WebM or MOV up to 100 MB.";return;}
+ const {data:rows,error:e}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",course.value).order("lesson_number",{ascending:false}).limit(1);if(e){status.textContent=e.message;return;}const next=Number(rows?.[0]?.lesson_number||0)+1;const {error:ie}=await db.from("academy_course_lessons").insert({course_id:course.value,lesson_number:next,title:name,is_published:true});if(ie){status.textContent=ie.message;return;}let path=null;if(file){path=course.value+"/"+next+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const {error:ve}=await db.storage.from("academy-videos").upload(path,file,{contentType:file.type});if(ve){status.textContent="Lesson added; video upload failed: "+ve.message;render();return;}}
+ if(value||path){const {error:re2}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:next,video_url:value||null,video_storage_path:path},{onConflict:"course_id,lesson_number"});if(re2){status.textContent="Lesson added; video save failed: "+re2.message;render();return;}}newTitle.value="";newUrl.value="";newFile.value="";status.textContent="Lesson added.";render();};
+ box.append(course,newTitle,newUrl,newFile,add,status,list);await render();
 }
 async function loadAdminPdfManager(){
  const box=document.getElementById("adminPdfManager");if(!box)return;
