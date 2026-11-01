@@ -465,7 +465,7 @@ footer {
     grid-template-columns: 1fr;
   }
 }
-  /* Mobile Navigation */
+ /* Mobile Navigation */
 .menu-toggle {
   display: none;
   font-size: 24px;
@@ -473,7 +473,21 @@ footer {
 }
 
 @media (max-width: 800px) {
+  header {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    font-size: 17px;
+    white-space: nowrap;
+  }
+
   .menu-toggle {
+    display: block;
+    flex-shrink: 0;
+  }
     display: block;
   }
 
