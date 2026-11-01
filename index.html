@@ -2043,6 +2043,7 @@ async function showDashboard(user) {
   if (!enrollments || enrollments.length === 0) {
     courseList.textContent = "No courses purchased yet.";
     summary.textContent = "No course progress yet.";
+    await loadStudentPdfLibrary([]);
     return;
   }
 
@@ -2062,10 +2063,13 @@ async function showDashboard(user) {
 
   const activeEnrollments = enrollments.filter(item => isCourseAccessActive(item.created_at));
   const expiredEnrollments = enrollments.filter(item => !isCourseAccessActive(item.created_at));
+  const expandedActiveEnrollments = activeEnrollments.flatMap(item => item.course_id === "all-courses-combo"
+    ? academyCourseCache.filter(course => course.course_id !== "all-courses-combo").map(course => ({course_id:course.course_id,created_at:item.created_at}))
+    : [item]);
   if (expiredEnrollments.length) { const note=document.createElement("p"); note.textContent=expiredEnrollments.length+" course purchase(s) have expired. Access ends at 12:00 AM IST on the 31st day (purchase date counted as Day 1)."; note.style.color="#fbbf24"; courseList.appendChild(note); }
   if (!activeEnrollments.length) { summary.textContent="Course access has expired."; await loadStudentPdfLibrary([]); return; }
   await loadStudentPdfLibrary(activeEnrollments);
-  for (const item of activeEnrollments) {
+  for (const item of expandedActiveEnrollments) {
     const courseId = item.course_id;
     let lessonRows = await loadAcademyLessons(courseId);
     if (lessonRows === null) {
