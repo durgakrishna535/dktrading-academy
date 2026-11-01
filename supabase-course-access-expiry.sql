@@ -1,5 +1,5 @@
--- DK Trading Academy: expire course access at 12:00 AM IST on the 31st day.
--- Purchase date is Day 1: a purchase on Nov 1 expires at Dec 1, 00:00 IST.
+-- DK Trading Academy: expire course access at 12:00 AM IST on the 32nd day.
+-- Purchase date is Day 1: a purchase on Nov 1 expires at Dec 2, 00:00 IST.
 -- This migration changes only content-access policies; it does not delete enrollments,
 -- payments, lesson progress, videos, or PDFs.
 
@@ -14,7 +14,7 @@ using (
     where e.user_id = auth.uid()
       and (e.course_id = academy_lesson_resources.course_id
            or e.course_id = 'all-courses-combo')
-      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 30)::timestamp at time zone 'Asia/Kolkata')
+      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 31)::timestamp at time zone 'Asia/Kolkata')
   )
 );
 
@@ -31,7 +31,7 @@ using (
     where e.user_id = auth.uid()
       and (e.course_id = academy_course_pdfs.course_id
            or e.course_id = 'all-courses-combo')
-      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 30)::timestamp at time zone 'Asia/Kolkata')
+      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 31)::timestamp at time zone 'Asia/Kolkata')
   )
 );
 
@@ -50,7 +50,7 @@ using (
      and (e.course_id = p.course_id or e.course_id = 'all-courses-combo')
     where p.storage_path = storage.objects.name
       and p.is_published = true
-      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 30)::timestamp at time zone 'Asia/Kolkata')
+      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 31)::timestamp at time zone 'Asia/Kolkata')
   )
 );
 
@@ -72,6 +72,6 @@ using (
      and (e.course_id = r.course_id or e.course_id = 'all-courses-combo')
     where r.video_storage_path = storage.objects.name
       and l.is_published = true
-      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 30)::timestamp at time zone 'Asia/Kolkata')
+      and now() < (((e.created_at at time zone 'Asia/Kolkata')::date + 31)::timestamp at time zone 'Asia/Kolkata')
   )
 );
