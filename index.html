@@ -892,6 +892,26 @@ async function forgotPassword() {
     alert("Password reset link sent. Please check your email.");
   }
 }
+  let razorpayScriptPromise;
+
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = resolve;
+      script.onerror = () => {
+        razorpayScriptPromise = null;
+        reject(new Error("Unable to load Razorpay. Please try again."));
+      };
+      document.body.appendChild(script);
+    });
+  }
+
+  return razorpayScriptPromise;
+}
 async function buyCourse(courseId) {
   try {
     const { data: sessionData, error: sessionError } =
@@ -958,7 +978,7 @@ async function buyCourse(courseId) {
         color: "#D4AF37"
       }
     };
-
+await loadRazorpay();
     const checkout = new Razorpay(options);
     checkout.open();
 
@@ -1190,6 +1210,5 @@ db.auth.onAuthStateChange((event, session) => {
   });
 });
 </script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </body>
 </html>
