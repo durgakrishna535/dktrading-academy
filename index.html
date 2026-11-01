@@ -747,6 +747,64 @@ footer {
 #student-dashboard .student-course-card .progress-track { background:#263449 !important; }
 #student-dashboard .student-course-card p { color:#dbeafe !important; }
 
+
+/* Responsive Admin workspace: desktop dashboard + mobile layout */
+#adminModal { padding:12px; align-items:center; justify-content:center; }
+#adminModal > .modal-box {
+  width:min(96vw, 1800px) !important;
+  max-width:1800px !important;
+  height:94vh;
+  max-height:94vh !important;
+  overflow-y:auto;
+  padding:28px;
+  box-sizing:border-box;
+}
+#adminModal #adminContent {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px;
+  align-items:start;
+}
+#adminModal #adminContent > .card {
+  min-width:0;
+  margin:0 !important;
+  height:100%;
+  box-sizing:border-box;
+}
+#adminModal #adminContent > .card:has(table),
+#adminModal #adminContent > .card:has(canvas),
+#adminModal #adminContent > .card:has(#adminPaymentHistory),
+#adminModal #adminContent > .card:has(#adminMonthlyRevenueChart),
+#adminModal #adminContent > .card:has(#adminCourseSalesChart) {
+  grid-column:1 / -1;
+}
+#adminModal #adminContent table { display:block; max-width:100%; overflow-x:auto; }
+#adminModal #adminContent img,
+#adminModal #adminContent video { max-width:100%; height:auto; }
+@media (max-width: 760px) {
+  #adminModal { padding:0; align-items:stretch; }
+  #adminModal > .modal-box {
+    width:100% !important;
+    max-width:none !important;
+    height:100dvh;
+    max-height:100dvh !important;
+    border-radius:0;
+    padding:58px 14px 20px;
+  }
+  #adminModal #adminContent { grid-template-columns:minmax(0,1fr); gap:12px; }
+  #adminModal #adminContent > .card,
+  #adminModal #adminContent > .card:has(table),
+  #adminModal #adminContent > .card:has(canvas),
+  #adminModal #adminContent > .card:has(#adminPaymentHistory),
+  #adminModal #adminContent > .card:has(#adminMonthlyRevenueChart),
+  #adminModal #adminContent > .card:has(#adminCourseSalesChart) {
+    grid-column:1;
+  }
+  #adminModal #adminContent input,
+  #adminModal #adminContent select,
+  #adminModal #adminContent textarea,
+  #adminModal #adminContent button { max-width:100%; box-sizing:border-box; }
+}
 </style>
 </head>
 
