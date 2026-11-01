@@ -1355,7 +1355,7 @@ async function renderAcademyUpdates(container, studentMode = false) {
       .eq("is_published", true)
       .order("created_at", { ascending: false }),
     db.from("academy_live_classes")
-      .select("id,title,description,starts_at,meeting_url,is_published,created_at")
+      .select("id,title,description,starts_at,required_course_id,is_published,created_at")
       .eq("is_published", true)
       .gte("starts_at", new Date().toISOString())
       .order("starts_at", { ascending: true })
@@ -1415,8 +1415,54 @@ async function renderAcademyUpdates(container, studentMode = false) {
       const date = document.createElement("p");
       date.textContent = "Starts: " + formatAcademyDate(item.starts_at);
       card.append(title, description, date);
-      const join = makeExternalLink(item.meeting_url, "Join Live Class");
-      if (join) card.appendChild(join);
+      const join = document.createElement("button");
+      join.type = "button";
+      join.textContent = "Join Live Class";
+      join.onclick = async () => {
+        join.disabled = true;
+        try {
+          const { data: sessionData } = await db.auth.getSession();
+          const user = sessionData?.session?.user;
+          if (!user) {
+            alert("Please login first to join this live class.");
+            document.getElementById("authModal")?.classList.add("show");
+            return;
+          }
+          const { data: enrollments, error: enrollmentError } = await db
+            .from("course_enrollments").select("course_id").eq("user_id", user.id);
+          if (enrollmentError) throw enrollmentError;
+          const owned = (enrollments || []).map(row => row.course_id);
+          const allowed = owned.includes("all-courses-combo") ||
+            (item.required_course_id && owned.includes(item.required_course_id));
+          if (!allowed) {
+            const course = academyCourseCache.find(row => row.course_id === item.required_course_id);
+            alert("Please purchase " + (course?.title || "the required course") + " to join this live class.");
+            return;
+          }
+          const { data: linkRow, error: linkError } = await db
+            .from("academy_live_class_links").select("meeting_url")
+            .eq("live_class_id", item.id).maybeSingle();
+          if (linkError) throw linkError;
+          if (!linkRow?.meeting_url) {
+            alert("Meeting link is not available yet. Please contact the academy admin.");
+            return;
+          }
+          const safeLink = makeExternalLink(linkRow.meeting_url, "Open meeting");
+          if (!safeLink) throw new Error("The meeting URL is invalid.");
+          const opened = window.open(safeLink.href, "_blank", "noopener,noreferrer");
+          if (!opened) alert("Please allow pop-ups to open the meeting link.");
+        } catch (error) {
+          console.error("Live class access check failed:", error);
+          alert("Unable to verify live class access. Please try again.");
+        } finally {
+          join.disabled = false;
+        }
+      };
+      card.appendChild(join);
+      const required = document.createElement("small");
+      const requiredCourse = academyCourseCache.find(row => row.course_id === item.required_course_id);
+      required.textContent = "Access: " + (requiredCourse?.title || "Required course") + " · All Courses Combo also included";
+      card.appendChild(required);
       container.appendChild(card);
     });
   }
@@ -1533,8 +1579,21 @@ async function loadAdminLiveClassManager() {
   box.textContent = "Loading live classes...";
 
   const { data, error } = await db.from("academy_live_classes")
-    .select("id,title,description,starts_at,meeting_url,is_published,created_at")
+    .select("id,title,description,starts_at,required_course_id,is_published,created_at")
     .order("starts_at", { ascending: true });
+  const { data: privateLinks, error: linksError } = await db.from("academy_live_class_links")
+    .select("live_class_id,meeting_url");
+  if (linksError) {
+    box.textContent = "Unable to load private meeting links: " + linksError.message;
+    return;
+  }
+  const linkMap = new Map((privateLinks || []).map(row => [row.live_class_id, row.meeting_url]));
+  const { data: courseRows, error: coursesError } = await db.from("academy_courses")
+    .select("course_id,title").eq("is_active", true).order("display_order");
+  if (coursesError) {
+    box.textContent = "Unable to load course list: " + coursesError.message;
+    return;
+  }
   if (error) {
     box.textContent = "Unable to load live classes: " + error.message;
     return;
@@ -1552,6 +1611,14 @@ async function loadAdminLiveClassManager() {
   const starts = document.createElement("input");
   starts.type = "datetime-local";
   starts.style.width = "100%";
+  const requiredCourse = document.createElement("select");
+  requiredCourse.style.width = "100%";
+  (courseRows || []).filter(course => course.course_id !== "all-courses-combo").forEach(course => {
+    const option = document.createElement("option");
+    option.value = course.course_id;
+    option.textContent = course.title;
+    requiredCourse.appendChild(option);
+  });
   const meeting = document.createElement("input");
   meeting.type = "url";
   meeting.placeholder = "Meeting URL (https://...)";
@@ -1585,26 +1652,41 @@ async function loadAdminLiveClassManager() {
     }
     add.disabled = true;
     status.textContent = "Saving...";
-    const { error: saveError } = await db.from("academy_live_classes").insert({
+    if (!requiredCourse.value) {
+      status.textContent = "Select the course required for this live class.";
+      add.disabled = false;
+      return;
+    }
+    const { data: created, error: saveError } = await db.from("academy_live_classes").insert({
       title: title.value.trim(),
       description: description.value.trim(),
       starts_at: startsAt.toISOString(),
-      meeting_url: meeting.value.trim() || null,
+      required_course_id: requiredCourse.value,
       is_published: publish.checked
-    });
+    }).select("id").single();
     if (saveError) status.textContent = "Save failed: " + saveError.message;
     else {
-      title.value = "";
-      description.value = "";
-      starts.value = "";
-      meeting.value = "";
-      status.textContent = "Live class scheduled.";
-      await loadAdminLiveClassManager();
-      await loadPublicAcademyUpdates();
+      const { error: linkSaveError } = await db.from("academy_live_class_links").upsert({
+        live_class_id: created.id,
+        meeting_url: meeting.value.trim()
+      });
+      if (linkSaveError) {
+        status.textContent = "Class saved, but meeting link could not be saved: " + linkSaveError.message;
+      } else {
+        title.value = "";
+        description.value = "";
+        starts.value = "";
+        meeting.value = "";
+        status.textContent = "Live class scheduled.";
+        await loadAdminLiveClassManager();
+        await loadPublicAcademyUpdates();
+      }
     }
     add.disabled = false;
   };
-  form.append(title, description, starts, meeting, publishLabel, add, status);
+  const courseLabel = document.createElement("label");
+  courseLabel.textContent = "Required course (All Courses Combo students are also eligible)";
+  form.append(title, description, starts, courseLabel, requiredCourse, meeting, publishLabel, add, status);
   box.appendChild(form);
 
   (data || []).forEach(item => {
@@ -1622,9 +1704,18 @@ async function loadAdminLiveClassManager() {
     editStarts.type = "datetime-local";
     editStarts.value = item.starts_at ? new Date(item.starts_at).toISOString().slice(0,16) : "";
     editStarts.style.width = "100%";
+    const editCourse = document.createElement("select");
+    editCourse.style.width = "100%";
+    (courseRows || []).filter(course => course.course_id !== "all-courses-combo").forEach(course => {
+      const option = document.createElement("option");
+      option.value = course.course_id;
+      option.textContent = course.title;
+      editCourse.appendChild(option);
+    });
+    editCourse.value = item.required_course_id || "";
     const editMeeting = document.createElement("input");
     editMeeting.type = "url";
-    editMeeting.value = item.meeting_url || "";
+    editMeeting.value = linkMap.get(item.id) || "";
     editMeeting.placeholder = "Meeting URL";
     editMeeting.style.width = "100%";
     const label = document.createElement("label");
@@ -1659,17 +1750,28 @@ async function loadAdminLiveClassManager() {
         }
       }
       save.disabled = true;
+      if (!editCourse.value) {
+        msg.textContent = " Select the required course.";
+        save.disabled = false;
+        return;
+      }
       const { error: updateError } = await db.from("academy_live_classes")
         .update({
           title: editTitle.value.trim(),
           description: editDescription.value.trim(),
           starts_at: startsAt.toISOString(),
-          meeting_url: editMeeting.value.trim() || null,
+          required_course_id: editCourse.value,
           is_published: checkbox.checked
         }).eq("id", item.id);
-      msg.textContent = updateError ? " " + updateError.message : " Saved";
+      let finalError = updateError;
+      if (!finalError) {
+        const { error: linkUpdateError } = await db.from("academy_live_class_links")
+          .upsert({ live_class_id: item.id, meeting_url: editMeeting.value.trim() });
+        finalError = linkUpdateError;
+      }
+      msg.textContent = finalError ? " " + finalError.message : " Saved";
       save.disabled = false;
-      if (!updateError) await loadPublicAcademyUpdates();
+      if (!finalError) await loadPublicAcademyUpdates();
     };
     remove.onclick = async () => {
       if (!confirm("Delete this live class?")) return;
@@ -1681,7 +1783,9 @@ async function loadAdminLiveClassManager() {
         await loadPublicAcademyUpdates();
       }
     };
-    row.append(editTitle, editDescription, editStarts, editMeeting, label, save, remove, msg);
+    const editCourseLabel = document.createElement("label");
+    editCourseLabel.textContent = "Required course (Combo also eligible)";
+    row.append(editTitle, editDescription, editStarts, editCourseLabel, editCourse, editMeeting, label, save, remove, msg);
     box.appendChild(row);
   });
 }
