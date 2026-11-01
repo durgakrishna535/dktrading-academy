@@ -1293,7 +1293,7 @@ async function loadAcademyCourses() {
   academyCourseCache=data||[];
   if(!grid||!combo)return;
   grid.textContent="";combo.textContent="";
-  academyCourseCache.forEach(course=>{
+  academyCourseCache.filter(course => course.course_id !== "all-courses-combo").forEach(course=>{
     const card=document.createElement("div");
     card.className="card course-card "+(courseStyleClass[course.course_id]||"");
     const icon=document.createElement("div");icon.className="icon";icon.textContent=({ "stock-market-basics":"📊","technical-analysis":"📈","risk-management":"⚖️","fo-education":"🎯"})[course.course_id]||"📚";
