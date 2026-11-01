@@ -1426,6 +1426,21 @@ adminContent.innerHTML = `
   </div>
 
   <div class="card">
+    <h3>Total Captured Purchases</h3>
+    <p class="course-price" id="adminCapturedPurchases">Loading...</p>
+  </div>
+
+  <div class="card">
+    <h3>Monthly Revenue (Last 6 Months)</h3>
+    <div id="adminMonthlyRevenueChart">Loading chart...</div>
+  </div>
+
+  <div class="card">
+    <h3>Course-wise Sales</h3>
+    <div id="adminCourseSalesChart">Loading chart...</div>
+  </div>
+
+  <div class="card">
     <h3>Payment History</h3>
     <div id="adminPaymentHistory">Loading payments...</div>
   </div>
@@ -1595,6 +1610,104 @@ async function loadAdminPayments() {
     style: "currency", currency: "INR", maximumFractionDigits: 2
   }).format(totalPaise / 100);
   countEl.textContent = rows.length + " payment record(s) · " + captured.length + " captured";
+  const purchasesEl = document.getElementById("adminCapturedPurchases");
+  if (purchasesEl) purchasesEl.textContent = String(captured.length);
+
+  const monthChart = document.getElementById("adminMonthlyRevenueChart");
+  const courseChart = document.getElementById("adminCourseSalesChart");
+  const money = value => new Intl.NumberFormat("en-IN", {
+    style: "currency", currency: "INR", maximumFractionDigits: 0
+  }).format(value / 100);
+  const monthKey = date => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric", month: "2-digit", timeZone: "Asia/Kolkata"
+    }).formatToParts(date);
+    const year = parts.find(p => p.type === "year").value;
+    const month = parts.find(p => p.type === "month").value;
+    return year + "-" + month;
+  };
+  const monthLabel = key => {
+    const [year, month] = key.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-IN", {
+      month: "short", year: "2-digit", timeZone: "Asia/Kolkata"
+    }).format(new Date(Date.UTC(year, month - 1, 15)));
+  };
+  const now = new Date();
+  const monthKeys = [];
+  for (let offset = 5; offset >= 0; offset--) {
+    const d = new Date(now.getTime());
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - offset);
+    monthKeys.push(monthKey(d));
+  }
+  const monthlyTotals = Object.fromEntries(monthKeys.map(key => [key, 0]));
+  captured.forEach(payment => {
+    if (!payment.created_at) return;
+    const key = monthKey(new Date(payment.created_at));
+    if (Object.prototype.hasOwnProperty.call(monthlyTotals, key)) {
+      monthlyTotals[key] += Number(payment.amount_paise || 0);
+    }
+  });
+  const courseTotals = {};
+  captured.forEach(payment => {
+    const key = payment.course_id || "unknown";
+    if (!courseTotals[key]) courseTotals[key] = { count: 0, amount: 0 };
+    courseTotals[key].count += 1;
+    courseTotals[key].amount += Number(payment.amount_paise || 0);
+  });
+
+  const renderBars = (container, items, valueOf, labelOf, displayOf) => {
+    if (!container) return;
+    container.innerHTML = "";
+    if (!items.length) {
+      container.textContent = "No captured payment data yet.";
+      return;
+    }
+    const max = Math.max(1, ...items.map(valueOf));
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.style.margin = "12px 0";
+      const label = document.createElement("div");
+      label.textContent = labelOf(item) + " — " + displayOf(item);
+      label.style.marginBottom = "5px";
+      label.style.fontSize = "14px";
+      const track = document.createElement("div");
+      track.style.height = "12px";
+      track.style.background = "#263326";
+      track.style.borderRadius = "8px";
+      track.style.overflow = "hidden";
+      const bar = document.createElement("div");
+      bar.style.height = "100%";
+      bar.style.width = Math.max(2, valueOf(item) / max * 100) + "%";
+      bar.style.background = "#39ff14";
+      bar.style.borderRadius = "8px";
+      track.appendChild(bar);
+      row.append(label, track);
+      container.appendChild(row);
+    });
+  };
+  renderBars(
+    monthChart,
+    monthKeys.map(key => ({ key, amount: monthlyTotals[key] })),
+    item => item.amount,
+    item => monthLabel(item.key),
+    item => money(item.amount)
+  );
+  const courseNamesForChart = {
+    "stock-market-basics": "Stock Market Basics",
+    "technical-analysis": "Technical Analysis",
+    "risk-management": "Risk Management",
+    "fo-education": "F&O Education",
+    "all-courses-combo": "All Courses Combo"
+  };
+  renderBars(
+    courseChart,
+    Object.entries(courseTotals).map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.count - a.count),
+    item => item.count,
+    item => courseNamesForChart[item.key] || item.key,
+    item => item.count + " sale(s) · " + money(item.amount)
+  );
 
   history.innerHTML = "";
   if (!rows.length) {
