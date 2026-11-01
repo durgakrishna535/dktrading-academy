@@ -619,14 +619,24 @@ footer {
 </div>
 
 <div id="studentNav" style="display:none;">
-<button onclick="showStudentProfile()">
-  My Profile
-</button>
+
+  <button onclick="showStudentProfile()">
+    My Profile
+  </button>
+
+  <button id="adminNavButton"
+          style="display:none;"
+          onclick="openAdminPanel()">
+    Admin Panel
+  </button>
+
   <details>
     <summary>My Courses</summary>
     <a href="#student-dashboard">View Purchased Courses</a>
   </details>
+
   <button onclick="logoutStudent()">Logout</button>
+
 </div>
   </nav>
 </header>
@@ -1196,8 +1206,26 @@ async function logoutStudent() {
   document.getElementById("studentMessage").textContent = "Logged out.";
 }
 
+async function checkAdminAccess(user) {
+  const adminButton = document.getElementById("adminNavButton");
+
+  adminButton.style.display = "none";
+
+  if (!user) return;
+
+  const { data, error } = await db
+    .from("academy_admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!error && data) {
+    adminButton.style.display = "inline-block";
+  }
+}
+
 db.auth.onAuthStateChange((event, session) => {
-    document.getElementById("authNav").style.display =
+  document.getElementById("authNav").style.display =
     session ? "none" : "block";
 
   document.getElementById("studentNav").style.display =
@@ -1205,6 +1233,9 @@ db.auth.onAuthStateChange((event, session) => {
 
   document.getElementById("student-dashboard").style.display =
     session ? "block" : "none";
+
+  checkAdminAccess(session?.user);
+
   if (event === "PASSWORD_RECOVERY") {
     document.getElementById("authModal").classList.add("show");
     document.getElementById("resetPasswordBox").style.display = "block";
