@@ -1258,8 +1258,34 @@ async function openAdminPanel() {
     return;
   }
 
-  document.getElementById("adminContent").textContent =
-    "Admin access verified for: " + userData.user.email;
+  const { data: stats, error: statsError } =
+  await db.rpc("get_academy_admin_stats");
+
+const adminContent = document.getElementById("adminContent");
+
+if (statsError) {
+  adminContent.textContent = "Unable to load statistics: " + statsError.message;
+  return;
+}
+
+const result = stats[0];
+
+adminContent.innerHTML = `
+  <div class="card">
+    <h3>Total Registered Students</h3>
+    <p class="course-price">${result.total_students}</p>
+  </div>
+
+  <div class="card">
+    <h3>Total Course Enrollments</h3>
+    <p class="course-price">${result.total_enrollments}</p>
+  </div>
+
+  <div class="card">
+    <h3>Different Courses Purchased</h3>
+    <p class="course-price">${result.total_purchased_courses}</p>
+  </div>
+`;
 
   document.getElementById("adminModal").classList.add("show");
 }
