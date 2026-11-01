@@ -1285,11 +1285,54 @@ adminContent.innerHTML = `
     <h3>Different Courses Purchased</h3>
     <p class="course-price">${result.total_purchased_courses}</p>
   </div>
+
+  <div class="card">
+    <h3>Student Management</h3>
+    <button onclick="loadAdminStudents()">View Registered Students</button>
+    <div id="adminStudentList"></div>
+  </div>
 `;
 
   document.getElementById("adminModal").classList.add("show");
 }
+async function loadAdminStudents() {
+  const list = document.getElementById("adminStudentList");
+  list.textContent = "Loading students...";
 
+  const { data, error } = await db.rpc("get_academy_students");
+
+  if (error) {
+    list.textContent = "Unable to load students: " + error.message;
+    return;
+  }
+
+  list.textContent = "";
+
+  if (!data || data.length === 0) {
+    list.textContent = "No students registered yet.";
+    return;
+  }
+
+  data.forEach(student => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const name = document.createElement("h3");
+    name.textContent = student.student_name || "Name not provided";
+
+    const email = document.createElement("p");
+    email.textContent = student.student_email || "";
+
+    const courses = document.createElement("p");
+    courses.textContent = "Purchased Courses: " +
+      (student.purchased_courses.length
+        ? student.purchased_courses.join(", ")
+        : "None");
+
+    card.append(name, email, courses);
+    list.appendChild(card);
+  });
+}
 function closeAdminPanel() {
   document.getElementById("adminModal").classList.remove("show");
 }
