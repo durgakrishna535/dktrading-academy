@@ -1298,7 +1298,14 @@ document.body.style.overflow = "hidden";
 async function loadAdminStudents() {
   const list = document.getElementById("adminStudentList");
   list.textContent = "Loading students...";
+const search = document.createElement("input");
+search.type = "text";
+search.placeholder = "Search by student name or email...";
+search.style.width = "100%";
+search.style.padding = "12px";
+search.style.marginBottom = "15px";
 
+list.appendChild(search);
   const { data, error } = await db.rpc("get_academy_students");
 
   if (error) {
@@ -1306,7 +1313,8 @@ async function loadAdminStudents() {
     return;
   }
 
-  list.textContent = "";
+  list.innerHTML = "";
+list.appendChild(search);
 
   if (!data || data.length === 0) {
     list.textContent = "No students registered yet.";
@@ -1332,6 +1340,16 @@ async function loadAdminStudents() {
     card.append(name, email, courses);
     list.appendChild(card);
   });
+  search.addEventListener("input", () => {
+  const query = search.value.toLowerCase();
+
+  Array.from(list.querySelectorAll(".card")).forEach(card => {
+    card.style.display =
+      card.textContent.toLowerCase().includes(query)
+        ? "block"
+        : "none";
+  });
+});
 }
 function closeAdminPanel() {
   document.getElementById("adminModal").classList.remove("show");
