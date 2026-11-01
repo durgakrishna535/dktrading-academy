@@ -1292,7 +1292,7 @@ adminContent.innerHTML = `
     <div id="adminStudentList"></div>
   </div>
 `;
-
+document.body.style.overflow = "hidden";
   document.getElementById("adminModal").classList.add("show");
 }
 async function loadAdminStudents() {
@@ -1335,6 +1335,7 @@ async function loadAdminStudents() {
 }
 function closeAdminPanel() {
   document.getElementById("adminModal").classList.remove("show");
+  document.body.style.overflow = "";
 }
 db.auth.onAuthStateChange((event, session) => {
   document.getElementById("authNav").style.display =
