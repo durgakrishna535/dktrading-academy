@@ -1974,7 +1974,7 @@ function courseAccessExpiry(createdAt) {
     timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(purchaseDate);
   const [year, month, day] = istDate.split("-").map(Number);
-  const expiry = new Date(Date.UTC(year, month - 1, day + 30));
+  const expiry = new Date(Date.UTC(year, month - 1, day + 31));
   return expiry.toLocaleDateString("en-CA", {timeZone:"UTC"});
 }
 function isCourseAccessActive(createdAt) {
@@ -2066,7 +2066,7 @@ async function showDashboard(user) {
   const expandedActiveEnrollments = activeEnrollments.flatMap(item => item.course_id === "all-courses-combo"
     ? academyCourseCache.filter(course => course.course_id !== "all-courses-combo").map(course => ({course_id:course.course_id,created_at:item.created_at}))
     : [item]);
-  if (expiredEnrollments.length) { const note=document.createElement("p"); note.textContent=expiredEnrollments.length+" course purchase(s) have expired. Access ends at 12:00 AM IST on the 31st day (purchase date counted as Day 1)."; note.style.color="#fbbf24"; courseList.appendChild(note); }
+  if (expiredEnrollments.length) { const note=document.createElement("p"); note.textContent=expiredEnrollments.length+" course purchase(s) have expired. Access ends at 12:00 AM IST on the 32nd day (purchase date counted as Day 1)."; note.style.color="#fbbf24"; courseList.appendChild(note); }
   if (!activeEnrollments.length) { summary.textContent="Course access has expired."; await loadStudentPdfLibrary([]); return; }
   await loadStudentPdfLibrary(activeEnrollments);
   for (const item of expandedActiveEnrollments) {
