@@ -1311,10 +1311,14 @@ async function loadAcademyCourses() {
 async function loadAcademyLessons(courseId) {
   const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title,video_url").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
   if(error){console.error("Dynamic lessons:",error);return null;}
-  return data||[];
+  if(!data||!data.length){
+    return (defaultCourseLessons[courseId]||[]).map((title,index)=>({lesson_number:index+1,title,video_url:null}));
+  }
+  return data;
 }
 
 async function showDashboard(user) {
+  await loadAcademyCourses();
   document.getElementById("student-dashboard").style.display = "block";
   const dashboard = document.getElementById("studentDashboard");
   dashboard.textContent = "";
@@ -1760,8 +1764,9 @@ async function loadAdminLessonManager() {
   const {data:courses,error:courseError}=await db.from("academy_courses").select("course_id,title").order("display_order");
   if(courseError){box.textContent=courseError.message;return;}
   box.textContent="";
+  const editableCourses=(courses||[]).filter(c=>c.course_id!=="all-courses-combo");
   const select=document.createElement("select");select.style.width="100%";
-  (courses||[]).filter(c=>c.course_id!=="all-courses-combo").forEach(course=>{const o=document.createElement("option");o.value=course.course_id;o.textContent=course.title;select.appendChild(o);});
+  editableCourses.forEach(course=>{const o=document.createElement("option");o.value=course.course_id;o.textContent=course.title;select.appendChild(o);});
   const list=document.createElement("div");
   const addTitle=document.createElement("input");addTitle.placeholder="New lesson title";addTitle.style.width="100%";
   const addVideo=document.createElement("input");addVideo.placeholder="Optional video URL (https://...)";addVideo.style.width="100%";
@@ -1769,7 +1774,11 @@ async function loadAdminLessonManager() {
   const status=document.createElement("p");
   const render=async()=>{
     list.textContent="Loading lessons...";
-    const {data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number");
+    let {data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number");
+    if(!error&&(!lessons||!lessons.length)){
+      const seed=(defaultCourseLessons[select.value]||[]).map((title,index)=>({course_id:select.value,lesson_number:index+1,title,is_published:true}));
+      if(seed.length){const seeded=await db.from("academy_course_lessons").insert(seed);if(seeded.error){list.textContent="Could not initialise lessons: "+seeded.error.message;return;}({data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number"));}
+    }
     if(error){list.textContent="Unable to load lessons: "+error.message;return;}
     list.textContent="";
     (lessons||[]).forEach(lesson=>{
