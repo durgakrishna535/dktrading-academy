@@ -1496,7 +1496,7 @@ async function renderAcademyUpdates(container, studentMode = false) {
         const activeRows = (enrollmentRows || []).filter(row => isCourseAccessActive(row.created_at));
         studentLiveAccess = {
           active: new Set(activeRows.map(row => row.course_id)),
-          hadEnrollment: (enrollmentRows || []).length > 0
+          purchased: new Set((enrollmentRows || []).map(row => row.course_id))
         };
       }
     }
@@ -1558,7 +1558,8 @@ async function renderAcademyUpdates(container, studentMode = false) {
             (item.required_course_id && studentLiveAccess.active.has(item.required_course_id));
           if (!hasActiveAccess) {
             join.disabled = true;
-            const hadMatchingPurchase = studentLiveAccess.hadEnrollment;
+            const hadMatchingPurchase = studentLiveAccess.purchased.has("all-courses-combo") ||
+              (item.required_course_id && studentLiveAccess.purchased.has(item.required_course_id));
             join.textContent = hadMatchingPurchase ? "Course access expired" : "Purchase required";
           }
         }
