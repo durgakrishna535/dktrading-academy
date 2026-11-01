@@ -1338,6 +1338,10 @@ document.getElementById("adminPanelModal").classList.remove("show");
 async function loadAdminStudents() {
   const list = document.getElementById("adminStudentList");
   list.textContent = "Loading students...";
+  const downloadButton = document.createElement("button");
+downloadButton.textContent = "Download Excel";
+downloadButton.style.marginBottom = "15px";
+list.appendChild(downloadButton);
 const search = document.createElement("input");
 search.type = "text";
 search.placeholder = "Search by student name or email...";
@@ -1354,13 +1358,30 @@ list.appendChild(search);
   }
 
   list.innerHTML = "";
+  list.appendChild(downloadButton);
 list.appendChild(search);
 
   if (!data || data.length === 0) {
     list.textContent = "No students registered yet.";
     return;
   }
+downloadButton.onclick = () => {
+  const excelData = data.map(student => ({
+    "Student Number": student.student_number || "",
+    "Student Name": student.student_name || "",
+    "Email": student.student_email || "",
+    "Registration Date": student.registration_date
+      ? new Date(student.registration_date).toLocaleDateString("en-IN")
+      : "",
+    "Purchased Courses": student.purchased_courses?.join(", ") || "None"
+  }));
 
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
+  XLSX.writeFile(workbook, "DK_Trading_Academy_Students.xlsx");
+};
   data.forEach(student => {
     const card = document.createElement("div");
     card.className = "card";
