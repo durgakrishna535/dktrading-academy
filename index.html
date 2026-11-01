@@ -836,6 +836,14 @@ footer {
       <p>Access your academy through the website and planned mobile apps.</p>
     </div>
   </div>
+  <div class="card" style="margin-top:22px;">
+    <h3>📢 Academy Announcements</h3>
+    <div id="publicAnnouncements">Loading announcements...</div>
+  </div>
+  <div class="card" style="margin-top:18px;">
+    <h3>🗓️ Upcoming Live Classes</h3>
+    <div id="publicLiveClasses">Loading live classes...</div>
+  </div>
 </section>
 
 <section id="contact" class="center">
@@ -1308,6 +1316,389 @@ async function loadAcademyCourses() {
   }
 }
 
+
+function formatAcademyDate(value) {
+  if (!value) return "Date to be announced";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Date to be announced"
+    : date.toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      });
+}
+
+function makeExternalLink(url, label) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!["https:", "http:"].includes(parsed.protocol)) return null;
+    const link = document.createElement("a");
+    link.href = parsed.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    link.className = "btn";
+    return link;
+  } catch {
+    return null;
+  }
+}
+
+async function renderAcademyUpdates(container, studentMode = false) {
+  if (!container) return;
+  container.textContent = "Loading academy updates...";
+
+  const [announcementsResult, liveResult] = await Promise.all([
+    db.from("academy_announcements")
+      .select("id,title,message,is_published,created_at")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false }),
+    db.from("academy_live_classes")
+      .select("id,title,description,starts_at,meeting_url,is_published,created_at")
+      .eq("is_published", true)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at", { ascending: true })
+  ]);
+
+  container.textContent = "";
+  if (announcementsResult.error || liveResult.error) {
+    console.error("Academy updates load failed:", announcementsResult.error || liveResult.error);
+    container.textContent = "Updates are temporarily unavailable. Please refresh.";
+    return;
+  }
+
+  const announcements = announcementsResult.data || [];
+  const liveClasses = liveResult.data || [];
+
+  const announcementHeading = document.createElement("h3");
+  announcementHeading.textContent = studentMode ? "📢 Announcements" : "Latest Notices";
+  container.appendChild(announcementHeading);
+
+  if (!announcements.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No announcements at the moment.";
+    container.appendChild(empty);
+  } else {
+    announcements.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.margin = "10px 0";
+      const title = document.createElement("h4");
+      title.textContent = item.title;
+      const message = document.createElement("p");
+      message.textContent = item.message;
+      const date = document.createElement("small");
+      date.textContent = "Posted: " + formatAcademyDate(item.created_at);
+      card.append(title, message, date);
+      container.appendChild(card);
+    });
+  }
+
+  const liveHeading = document.createElement("h3");
+  liveHeading.textContent = studentMode ? "🗓️ Upcoming Live Classes" : "Upcoming Sessions";
+  container.appendChild(liveHeading);
+
+  if (!liveClasses.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No upcoming live classes have been published.";
+    container.appendChild(empty);
+  } else {
+    liveClasses.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.margin = "10px 0";
+      const title = document.createElement("h4");
+      title.textContent = item.title;
+      const description = document.createElement("p");
+      description.textContent = item.description || "";
+      const date = document.createElement("p");
+      date.textContent = "Starts: " + formatAcademyDate(item.starts_at);
+      card.append(title, description, date);
+      const join = makeExternalLink(item.meeting_url, "Join Live Class");
+      if (join) card.appendChild(join);
+      container.appendChild(card);
+    });
+  }
+}
+
+async function loadAdminAnnouncementManager() {
+  const box = document.getElementById("adminAnnouncementManager");
+  if (!box) return;
+  box.textContent = "Loading announcements...";
+
+  const { data, error } = await db.from("academy_announcements")
+    .select("id,title,message,is_published,created_at")
+    .order("created_at", { ascending: false });
+  if (error) {
+    box.textContent = "Unable to load announcements: " + error.message;
+    return;
+  }
+
+  box.textContent = "";
+  const form = document.createElement("div");
+  const title = document.createElement("input");
+  title.placeholder = "Announcement title";
+  title.style.width = "100%";
+  const message = document.createElement("textarea");
+  message.placeholder = "Announcement message";
+  message.rows = 3;
+  message.style.width = "100%";
+  const publishLabel = document.createElement("label");
+  const publish = document.createElement("input");
+  publish.type = "checkbox";
+  publish.checked = true;
+  publishLabel.append(publish, document.createTextNode(" Publish to students"));
+  const add = document.createElement("button");
+  add.textContent = "Add Announcement";
+  const status = document.createElement("p");
+  add.onclick = async () => {
+    if (!title.value.trim() || !message.value.trim()) {
+      status.textContent = "Enter both title and message.";
+      return;
+    }
+    add.disabled = true;
+    status.textContent = "Saving...";
+    const { error: saveError } = await db.from("academy_announcements").insert({
+      title: title.value.trim(),
+      message: message.value.trim(),
+      is_published: publish.checked
+    });
+    if (saveError) status.textContent = "Save failed: " + saveError.message;
+    else {
+      title.value = "";
+      message.value = "";
+      status.textContent = "Announcement saved.";
+      await loadAdminAnnouncementManager();
+      await loadPublicAcademyUpdates();
+    }
+    add.disabled = false;
+  };
+  form.append(title, message, publishLabel, add, status);
+  box.appendChild(form);
+
+  (data || []).forEach(item => {
+    const row = document.createElement("div");
+    row.className = "card";
+    row.style.margin = "12px 0";
+    const editTitle = document.createElement("input");
+    editTitle.value = item.title || "";
+    editTitle.style.width = "100%";
+    const editMessage = document.createElement("textarea");
+    editMessage.value = item.message || "";
+    editMessage.rows = 3;
+    editMessage.style.width = "100%";
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !!item.is_published;
+    label.append(checkbox, document.createTextNode(" Published"));
+    const save = document.createElement("button");
+    save.textContent = "Save";
+    const remove = document.createElement("button");
+    remove.textContent = "Delete";
+    remove.style.marginLeft = "8px";
+    remove.style.background = "#b91c1c";
+    const msg = document.createElement("span");
+    save.onclick = async () => {
+      save.disabled = true;
+      const { error: updateError } = await db.from("academy_announcements")
+        .update({
+          title: editTitle.value.trim(),
+          message: editMessage.value.trim(),
+          is_published: checkbox.checked
+        }).eq("id", item.id);
+      msg.textContent = updateError ? " " + updateError.message : " Saved";
+      save.disabled = false;
+      if (!updateError) await loadPublicAcademyUpdates();
+    };
+    remove.onclick = async () => {
+      if (!confirm("Delete this announcement?")) return;
+      const { error: deleteError } = await db.from("academy_announcements")
+        .delete().eq("id", item.id);
+      if (deleteError) msg.textContent = " " + deleteError.message;
+      else {
+        await loadAdminAnnouncementManager();
+        await loadPublicAcademyUpdates();
+      }
+    };
+    row.append(editTitle, editMessage, label, save, remove, msg);
+    box.appendChild(row);
+  });
+}
+
+async function loadAdminLiveClassManager() {
+  const box = document.getElementById("adminLiveClassManager");
+  if (!box) return;
+  box.textContent = "Loading live classes...";
+
+  const { data, error } = await db.from("academy_live_classes")
+    .select("id,title,description,starts_at,meeting_url,is_published,created_at")
+    .order("starts_at", { ascending: true });
+  if (error) {
+    box.textContent = "Unable to load live classes: " + error.message;
+    return;
+  }
+
+  box.textContent = "";
+  const form = document.createElement("div");
+  const title = document.createElement("input");
+  title.placeholder = "Live class title";
+  title.style.width = "100%";
+  const description = document.createElement("textarea");
+  description.placeholder = "Description (optional)";
+  description.rows = 2;
+  description.style.width = "100%";
+  const starts = document.createElement("input");
+  starts.type = "datetime-local";
+  starts.style.width = "100%";
+  const meeting = document.createElement("input");
+  meeting.type = "url";
+  meeting.placeholder = "Meeting URL (https://...)";
+  meeting.style.width = "100%";
+  const publishLabel = document.createElement("label");
+  const publish = document.createElement("input");
+  publish.type = "checkbox";
+  publish.checked = true;
+  publishLabel.append(publish, document.createTextNode(" Publish to students"));
+  const add = document.createElement("button");
+  add.textContent = "Schedule Live Class";
+  const status = document.createElement("p");
+  add.onclick = async () => {
+    if (!title.value.trim() || !starts.value) {
+      status.textContent = "Enter a title and start date/time.";
+      return;
+    }
+    const startsAt = new Date(starts.value);
+    if (Number.isNaN(startsAt.getTime())) {
+      status.textContent = "Enter a valid date and time.";
+      return;
+    }
+    if (meeting.value.trim()) {
+      try {
+        const u = new URL(meeting.value.trim());
+        if (!["https:", "http:"].includes(u.protocol)) throw new Error();
+      } catch {
+        status.textContent = "Meeting link must start with http:// or https://";
+        return;
+      }
+    }
+    add.disabled = true;
+    status.textContent = "Saving...";
+    const { error: saveError } = await db.from("academy_live_classes").insert({
+      title: title.value.trim(),
+      description: description.value.trim(),
+      starts_at: startsAt.toISOString(),
+      meeting_url: meeting.value.trim() || null,
+      is_published: publish.checked
+    });
+    if (saveError) status.textContent = "Save failed: " + saveError.message;
+    else {
+      title.value = "";
+      description.value = "";
+      starts.value = "";
+      meeting.value = "";
+      status.textContent = "Live class scheduled.";
+      await loadAdminLiveClassManager();
+      await loadPublicAcademyUpdates();
+    }
+    add.disabled = false;
+  };
+  form.append(title, description, starts, meeting, publishLabel, add, status);
+  box.appendChild(form);
+
+  (data || []).forEach(item => {
+    const row = document.createElement("div");
+    row.className = "card";
+    row.style.margin = "12px 0";
+    const editTitle = document.createElement("input");
+    editTitle.value = item.title || "";
+    editTitle.style.width = "100%";
+    const editDescription = document.createElement("textarea");
+    editDescription.value = item.description || "";
+    editDescription.rows = 2;
+    editDescription.style.width = "100%";
+    const editStarts = document.createElement("input");
+    editStarts.type = "datetime-local";
+    editStarts.value = item.starts_at ? new Date(item.starts_at).toISOString().slice(0,16) : "";
+    editStarts.style.width = "100%";
+    const editMeeting = document.createElement("input");
+    editMeeting.type = "url";
+    editMeeting.value = item.meeting_url || "";
+    editMeeting.placeholder = "Meeting URL";
+    editMeeting.style.width = "100%";
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !!item.is_published;
+    label.append(checkbox, document.createTextNode(" Published"));
+    const save = document.createElement("button");
+    save.textContent = "Save";
+    const remove = document.createElement("button");
+    remove.textContent = "Delete";
+    remove.style.marginLeft = "8px";
+    remove.style.background = "#b91c1c";
+    const msg = document.createElement("span");
+    save.onclick = async () => {
+      if (!editTitle.value.trim() || !editStarts.value) {
+        msg.textContent = " Enter title and start date/time.";
+        return;
+      }
+      const startsAt = new Date(editStarts.value);
+      if (Number.isNaN(startsAt.getTime())) {
+        msg.textContent = " Invalid date/time.";
+        return;
+      }
+      if (editMeeting.value.trim()) {
+        try {
+          const u = new URL(editMeeting.value.trim());
+          if (!["https:", "http:"].includes(u.protocol)) throw new Error();
+        } catch {
+          msg.textContent = " Invalid meeting URL.";
+          return;
+        }
+      }
+      save.disabled = true;
+      const { error: updateError } = await db.from("academy_live_classes")
+        .update({
+          title: editTitle.value.trim(),
+          description: editDescription.value.trim(),
+          starts_at: startsAt.toISOString(),
+          meeting_url: editMeeting.value.trim() || null,
+          is_published: checkbox.checked
+        }).eq("id", item.id);
+      msg.textContent = updateError ? " " + updateError.message : " Saved";
+      save.disabled = false;
+      if (!updateError) await loadPublicAcademyUpdates();
+    };
+    remove.onclick = async () => {
+      if (!confirm("Delete this live class?")) return;
+      const { error: deleteError } = await db.from("academy_live_classes")
+        .delete().eq("id", item.id);
+      if (deleteError) msg.textContent = " " + deleteError.message;
+      else {
+        await loadAdminLiveClassManager();
+        await loadPublicAcademyUpdates();
+      }
+    };
+    row.append(editTitle, editDescription, editStarts, editMeeting, label, save, remove, msg);
+    box.appendChild(row);
+  });
+}
+
+async function loadPublicAcademyUpdates() {
+  await renderAcademyUpdates(document.getElementById("publicAnnouncements"), false);
+  const liveBox = document.getElementById("publicLiveClasses");
+  if (!liveBox) return;
+  // Render both categories into the dedicated public live-class panel.
+  const temporary = document.createElement("div");
+  await renderAcademyUpdates(temporary, false);
+  liveBox.textContent = "";
+  const children = Array.from(temporary.children);
+  const liveHeadingIndex = children.findIndex(node => node.tagName === "H3" && node.textContent.includes("Upcoming Sessions"));
+  if (liveHeadingIndex >= 0) children.slice(liveHeadingIndex).forEach(node => liveBox.appendChild(node));
+}
+
 async function loadAcademyLessons(courseId) {
   const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title,video_url").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
   if(error){console.error("Dynamic lessons:",error);return null;}
@@ -1334,7 +1725,10 @@ async function showDashboard(user) {
   summary.textContent = "Loading your learning progress...";
   const courseList = document.createElement("div");
   courseList.textContent = "Loading courses...";
-  dashboard.append(heading, email, coursesHeading, summary, courseList);
+  const updates = document.createElement("div");
+  updates.id = "studentAcademyUpdates";
+  dashboard.append(heading, email, updates, coursesHeading, summary, courseList);
+  await renderAcademyUpdates(updates, true);
 
   const { data: enrollments, error: enrollmentError } = await db
     .from("course_enrollments")
@@ -1606,6 +2000,16 @@ adminContent.innerHTML = `
     <div id="adminLessonManager">Loading lessons...</div>
   </div>
   <div class="card">
+    <h3>Announcement Management</h3>
+    <p>Create, publish, edit or remove notices shown on the website and student dashboard.</p>
+    <div id="adminAnnouncementManager">Loading announcements...</div>
+  </div>
+  <div class="card">
+    <h3>Live Class Management</h3>
+    <p>Schedule sessions and publish the joining link for students.</p>
+    <div id="adminLiveClassManager">Loading live classes...</div>
+  </div>
+  <div class="card">
     <h3>Student Management</h3>
     <button onclick="loadAdminStudents()">View Registered Students</button>
     <div id="adminStudentList"></div>
@@ -1616,6 +2020,8 @@ document.body.style.overflow = "hidden";
   loadAdminPayments();
   loadAdminCourseManager();
   loadAdminLessonManager();
+  loadAdminAnnouncementManager();
+  loadAdminLiveClassManager();
 }
   function closeStudentDetails() {
   document.getElementById("studentDetailsModal").classList.remove("show");
@@ -2060,8 +2466,16 @@ function closeAdminPanel() {
   document.body.style.overflow = "";
 }
 loadAcademyCourses();
-window.addEventListener("focus",()=>loadAcademyCourses());
-const academyRealtime=db.channel("academy-content-live").on("postgres_changes",{event:"*",schema:"public",table:"academy_courses"},()=>loadAcademyCourses()).subscribe();
+loadPublicAcademyUpdates();
+window.addEventListener("focus",()=>{
+  loadAcademyCourses();
+  loadPublicAcademyUpdates();
+});
+const academyRealtime=db.channel("academy-content-live")
+  .on("postgres_changes",{event:"*",schema:"public",table:"academy_courses"},()=>loadAcademyCourses())
+  .on("postgres_changes",{event:"*",schema:"public",table:"academy_announcements"},()=>loadPublicAcademyUpdates())
+  .on("postgres_changes",{event:"*",schema:"public",table:"academy_live_classes"},()=>loadPublicAcademyUpdates())
+  .subscribe();
 
 db.auth.onAuthStateChange((event, session) => {
   document.getElementById("authNav").style.display =
