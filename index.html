@@ -1966,6 +1966,26 @@ async function loadPublicAcademyUpdates() {
   }
 }
 
+function courseAccessExpiry(createdAt) {
+  if (!createdAt) return null;
+  const purchaseDate = new Date(createdAt);
+  if (Number.isNaN(purchaseDate.getTime())) return null;
+  const istDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(purchaseDate);
+  const [year, month, day] = istDate.split("-").map(Number);
+  const expiry = new Date(Date.UTC(year, month - 1, day + 30));
+  return expiry.toLocaleDateString("en-CA", {timeZone:"UTC"});
+}
+function isCourseAccessActive(createdAt) {
+  const expiryDate = courseAccessExpiry(createdAt);
+  if (!expiryDate) return false;
+  const nowIST = new Intl.DateTimeFormat("en-CA", {
+    timeZone:"Asia/Kolkata", year:"numeric", month:"2-digit", day:"2-digit"
+  }).format(new Date());
+  return nowIST < expiryDate;
+}
+
 async function loadAcademyLessons(courseId) {
   const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
   if(error){console.error("Dynamic lessons:",error);return null;}
@@ -1977,7 +1997,7 @@ async function loadAcademyLessons(courseId) {
 }
 
 async function loadStudentPdfLibrary(enrollments){
- const box=document.getElementById("studentPdfLibrary");if(!box)return;const owned=(enrollments||[]).map(x=>x.course_id);
+ const box=document.getElementById("studentPdfLibrary");if(!box)return;const owned=(enrollments||[]).filter(x=>isCourseAccessActive(x.created_at)).map(x=>x.course_id);
  const ids=owned.includes("all-courses-combo")?academyCourseCache.map(x=>x.course_id).filter(x=>x!=="all-courses-combo"):owned;
  if(!ids.length){box.textContent="Purchase a course to access PDFs.";return;}
  const {data,error}=await db.from("academy_course_pdfs").select("id,course_id,title,description,storage_path").in("course_id",ids).eq("is_published",true).order("display_order");
@@ -2011,7 +2031,7 @@ async function showDashboard(user) {
 
   const { data: enrollments, error: enrollmentError } = await db
     .from("course_enrollments")
-    .select("course_id")
+    .select("course_id,created_at")
     .eq("user_id", user.id);
 
   courseList.textContent = "";
@@ -2040,7 +2060,12 @@ async function showDashboard(user) {
   let totalLessons = 0;
   let completedLessons = 0;
 
-  for (const item of enrollments) {
+  const activeEnrollments = enrollments.filter(item => isCourseAccessActive(item.created_at));
+  const expiredEnrollments = enrollments.filter(item => !isCourseAccessActive(item.created_at));
+  if (expiredEnrollments.length) { const note=document.createElement("p"); note.textContent=expiredEnrollments.length+" course purchase(s) have expired. Access ends at 12:00 AM IST on the 31st day (purchase date counted as Day 1)."; note.style.color="#fbbf24"; courseList.appendChild(note); }
+  if (!activeEnrollments.length) { summary.textContent="Course access has expired."; await loadStudentPdfLibrary([]); return; }
+  await loadStudentPdfLibrary(activeEnrollments);
+  for (const item of activeEnrollments) {
     const courseId = item.course_id;
     let lessonRows = await loadAcademyLessons(courseId);
     if (lessonRows === null) {
@@ -2157,7 +2182,7 @@ async function showDashboard(user) {
     courseList.appendChild(card);
   }
 
-  await loadStudentPdfLibrary(enrollments);
+
 
   const overall = document.getElementById("overallLearningProgress");
   if (progressReady && overall) {
