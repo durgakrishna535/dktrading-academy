@@ -5,9 +5,9 @@ alter table public.academy_lesson_resources
   add column if not exists video_storage_path text;
 
 insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
-values ('academy-videos','academy-videos',false,104857600,array['video/mp4','video/webm','video/quicktime'])
+values ('academy-videos','academy-videos',false,2147483648,array['video/mp4','video/webm','video/quicktime'])
 on conflict (id) do update
-set public=false,file_size_limit=104857600,
+set public=false,file_size_limit=2147483648,
     allowed_mime_types=array['video/mp4','video/webm','video/quicktime'];
 
 drop policy if exists "admins manage academy videos storage" on storage.objects;
