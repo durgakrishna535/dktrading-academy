@@ -90,6 +90,52 @@ button:hover,.btn:hover {filter:brightness(1.1)}
   color:var(--gold);
   border:1px solid var(--gold);
 }
+
+/* Student lesson progress buttons */
+.lesson-pending-btn {
+  background:#2563eb;
+  color:#ffffff;
+  border:1px solid #60a5fa;
+  transition:background .2s ease, transform .2s ease;
+}
+.lesson-pending-btn:hover { background:#1d4ed8; }
+.lesson-completed-btn {
+  background:#15803d;
+  color:#ffffff;
+  border:1px solid #4ade80;
+  cursor:pointer;
+}
+.lesson-completed-btn:hover { background:#166534; }
+
+/* Distinct header account actions */
+.nav-profile-btn {
+  background:#2563eb;
+  color:#ffffff;
+  border:1px solid #60a5fa;
+}
+.nav-profile-btn:hover { background:#1d4ed8; }
+.nav-admin-btn {
+  background:#7c3aed;
+  color:#ffffff;
+  border:1px solid #a78bfa;
+}
+.nav-admin-btn:hover { background:#6d28d9; }
+.nav-logout-btn {
+  background:#b91c1c;
+  color:#ffffff;
+  border:1px solid #f87171;
+}
+.nav-logout-btn:hover { background:#991b1b; }
+
+#studentNav details summary {
+  cursor:pointer;
+  color:#f5f5f5;
+}
+#studentNav details a {
+  display:block;
+  padding:8px 10px;
+  color:#bfdbfe;
+}
 .hero {
   position:relative;
   overflow:hidden;
@@ -639,11 +685,12 @@ footer {
 
 <div id="studentNav" style="display:none;">
 
-  <button onclick="showStudentProfile()">
+  <button class="nav-profile-btn" onclick="showStudentProfile()">
     My Profile
   </button>
 
   <button id="adminNavButton"
+          class="nav-admin-btn"
           style="display:none;"
           onclick="openAdminPanel()">
     Admin Panel
@@ -654,7 +701,7 @@ footer {
     <a href="#student-dashboard">View Purchased Courses</a>
   </details>
 
-  <button onclick="logoutStudent()">Logout</button>
+  <button class="nav-logout-btn" onclick="logoutStudent()">Logout</button>
 
 </div>
   </nav>
@@ -1293,7 +1340,7 @@ async function showDashboard(user) {
       label.textContent = "Lesson " + (index + 1) + ": " + lessonName;
       const action = document.createElement("button");
       action.type = "button";
-      action.className = "outline-btn";
+      action.className = completedSet.has(String(index + 1)) ? "lesson-completed-btn" : "lesson-pending-btn";
       action.textContent = completedSet.has(String(index + 1)) ? "Completed ✓" : "Mark Complete";
       action.disabled = !progressReady;
       action.onclick = async () => {
@@ -1315,6 +1362,7 @@ async function showDashboard(user) {
           if (wasCompleted) completedSet.delete(lessonId);
           else completedSet.add(lessonId);
           action.textContent = completedSet.has(lessonId) ? "Completed ✓" : "Mark Complete";
+          action.className = completedSet.has(lessonId) ? "lesson-completed-btn" : "lesson-pending-btn";
           progressText.dataset.completed = String(completedSet.size);
           renderProgress();
         }
