@@ -1687,16 +1687,31 @@ async function loadAdminLiveClassManager() {
 }
 
 async function loadPublicAcademyUpdates() {
-  await renderAcademyUpdates(document.getElementById("publicAnnouncements"), false);
+  const announcementBox = document.getElementById("publicAnnouncements");
   const liveBox = document.getElementById("publicLiveClasses");
-  if (!liveBox) return;
-  // Render both categories into the dedicated public live-class panel.
+  if (!announcementBox && !liveBox) return;
+
   const temporary = document.createElement("div");
   await renderAcademyUpdates(temporary, false);
-  liveBox.textContent = "";
   const children = Array.from(temporary.children);
-  const liveHeadingIndex = children.findIndex(node => node.tagName === "H3" && node.textContent.includes("Upcoming Sessions"));
-  if (liveHeadingIndex >= 0) children.slice(liveHeadingIndex).forEach(node => liveBox.appendChild(node));
+  const liveHeadingIndex = children.findIndex(
+    node => node.tagName === "H3" && node.textContent.includes("Upcoming Sessions")
+  );
+
+  if (announcementBox) {
+    announcementBox.textContent = "";
+    const announcementNodes = liveHeadingIndex >= 0
+      ? children.slice(0, liveHeadingIndex)
+      : children;
+    announcementNodes.forEach(node => announcementBox.appendChild(node));
+  }
+
+  if (liveBox) {
+    liveBox.textContent = "";
+    if (liveHeadingIndex >= 0) {
+      children.slice(liveHeadingIndex).forEach(node => liveBox.appendChild(node));
+    }
+  }
 }
 
 async function loadAcademyLessons(courseId) {
