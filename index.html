@@ -2371,89 +2371,176 @@ document.getElementById("adminModal").classList.remove("show");
 }
 async function loadAdminStudents() {
   const list = document.getElementById("adminStudentList");
-  list.textContent = "Loading students...";
-  const downloadButton = document.createElement("button");
-downloadButton.textContent = "Download Excel";
-downloadButton.style.marginBottom = "15px";
-list.appendChild(downloadButton);
-const search = document.createElement("input");
-search.type = "text";
-search.placeholder = "Search by student name or email...";
-search.style.width = "100%";
-search.style.padding = "12px";
-search.style.marginBottom = "15px";
-
-list.appendChild(search);
+  list.textContent = "Loading students and course purchases...";
   const { data, error } = await db.rpc("get_academy_students");
-
   if (error) {
     list.textContent = "Unable to load students: " + error.message;
     return;
   }
-
-  list.innerHTML = "";
-  list.appendChild(downloadButton);
-list.appendChild(search);
-
-  if (!data || data.length === 0) {
-    list.textContent = "No students registered yet.";
+  const students = data || [];
+  const [{ data: enrollmentRows, error: enrollmentError }, { data: courseRows, error: courseError }] = await Promise.all([
+    db.from("course_enrollments").select("user_id,course_id,created_at").order("created_at", { ascending: false }),
+    db.from("academy_courses").select("course_id,title")
+  ]);
+  if (enrollmentError || courseError) {
+    list.textContent = "Student list loaded, but purchase/expiry report could not load: " +
+      (enrollmentError?.message || courseError?.message || "Unknown error");
+    console.error("Student purchase report error:", enrollmentError || courseError);
     return;
   }
-downloadButton.onclick = () => {
-  const excelData = data.map(student => ({
-    "Student Number": student.student_number || "",
-    "Student Name": student.student_name || "",
-    "Email": student.student_email || "",
-    "Registration Date": student.registration_date
-      ? new Date(student.registration_date).toLocaleDateString("en-IN")
-      : "",
-    "Purchased Courses": student.purchased_courses?.join(", ") || "None"
-  }));
 
-  const worksheet = XLSX.utils.json_to_sheet(excelData);
-  const workbook = XLSX.utils.book_new();
+  const courseNames = Object.fromEntries((courseRows || []).map(c => [c.course_id, c.title || c.course_id]));
+  const individualCourseIds = (courseRows || []).map(c => c.course_id).filter(id => id !== "all-courses-combo");
+  const istDateKey = value => {
+    if (!value) return "";
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date(value));
+    const get = type => parts.find(part => part.type === type)?.value || "";
+    return get("year") + "-" + get("month") + "-" + get("day");
+  };
+  const addDaysToDateKey = (key, days) => {
+    if (!key) return "";
+    const [year, month, day] = key.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day + days));
+    return date.toISOString().slice(0, 10);
+  };
+  const displayDate = key => key ? new Date(key + "T00:00:00Z").toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC"
+  }) : "N/A";
+  const todayIST = istDateKey(new Date().toISOString());
+  const purchasesByStudent = new Map();
+  const expandedPurchases = [];
+  (enrollmentRows || []).forEach(enrollment => {
+    const purchasedIds = enrollment.course_id === "all-courses-combo"
+      ? individualCourseIds
+      : [enrollment.course_id];
+    const purchaseDate = istDateKey(enrollment.created_at);
+    const expiryDate = addDaysToDateKey(purchaseDate, 31);
+    const status = todayIST && expiryDate
+      ? (todayIST < expiryDate ? "Active" : "Expired")
+      : "Date unavailable";
+    purchasedIds.forEach(courseId => {
+      const record = {
+        user_id: enrollment.user_id,
+        course_id: courseId,
+        course: courseNames[courseId] || courseId,
+        original_purchase: enrollment.course_id === "all-courses-combo" ? "All Courses Combo" : (courseNames[enrollment.course_id] || enrollment.course_id),
+        purchase_date: purchaseDate,
+        expiry_date: expiryDate,
+        access_status: status,
+        enrollment_created_at: enrollment.created_at
+      };
+      expandedPurchases.push(record);
+      if (!purchasesByStudent.has(enrollment.user_id)) purchasesByStudent.set(enrollment.user_id, []);
+      purchasesByStudent.get(enrollment.user_id).push(record);
+    });
+  });
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Students");
-  XLSX.writeFile(workbook, "DK_Trading_Academy_Students.xlsx");
-};
-  data.forEach(student => {
+  list.innerHTML = "";
+  const downloadButton = document.createElement("button");
+  downloadButton.type = "button";
+  downloadButton.textContent = "Download Excel";
+  downloadButton.style.marginBottom = "15px";
+  const search = document.createElement("input");
+  search.type = "text";
+  search.placeholder = "Search by student name or email...";
+  search.style.width = "100%";
+  search.style.padding = "12px";
+  search.style.marginBottom = "15px";
+  list.append(downloadButton, search);
+
+  const activeCount = expandedPurchases.filter(p => p.access_status === "Active").length;
+  const expiredCount = expandedPurchases.filter(p => p.access_status === "Expired").length;
+  const summary = document.createElement("p");
+  summary.textContent = "Registered students: " + students.length +
+    " · Course purchases (combo expanded): " + expandedPurchases.length +
+    " · Active course access: " + activeCount + " · Expired course access: " + expiredCount;
+  list.appendChild(summary);
+
+  downloadButton.onclick = () => {
+    if (typeof XLSX === "undefined") {
+      alert("Excel export library is unavailable. Refresh the page and try again.");
+      return;
+    }
+    const studentSummaryRows = students.map(student => {
+      const purchases = purchasesByStudent.get(student.user_id) || [];
+      const uniqueCourses = [...new Set(purchases.map(p => p.course))];
+      return {
+        "Student Number": student.student_number || "",
+        "Student Name": student.student_name || "",
+        "Email": student.student_email || "",
+        "Registration Date": student.registration_date ? displayDate(istDateKey(student.registration_date)) : "",
+        "Purchased Course Count": uniqueCourses.length,
+        "Purchase Record Count": purchases.length,
+        "Active Course Count": purchases.filter(p => p.access_status === "Active").length,
+        "Expired Course Count": purchases.filter(p => p.access_status === "Expired").length,
+        "All Purchased Courses": uniqueCourses.join(", ") || "None",
+        "Active Courses": [...new Set(purchases.filter(p => p.access_status === "Active").map(p => p.course))].join(", ") || "None",
+        "Expired Courses": [...new Set(purchases.filter(p => p.access_status === "Expired").map(p => p.course))].join(", ") || "None"
+      };
+    });
+    const enrollmentDetailsRows = expandedPurchases.map(purchase => {
+      const student = students.find(s => s.user_id === purchase.user_id) || {};
+      return {
+        "Student Number": student.student_number || "",
+        "Student Name": student.student_name || "Name not provided",
+        "Email": student.student_email || "",
+        "Course": purchase.course,
+        "Purchased As": purchase.original_purchase,
+        "Purchase Date (IST)": displayDate(purchase.purchase_date),
+        "Expiry Date (IST)": displayDate(purchase.expiry_date),
+        "Access Status": purchase.access_status
+      };
+    });
+    const courseSummaryRows = individualCourseIds.map(courseId => {
+      const purchases = expandedPurchases.filter(p => p.course_id === courseId);
+      return {
+        "Course": courseNames[courseId] || courseId,
+        "Total Purchases": purchases.length,
+        "Active Students": purchases.filter(p => p.access_status === "Active").length,
+        "Expired Students": purchases.filter(p => p.access_status === "Expired").length
+      };
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(studentSummaryRows), "Student Summary");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(enrollmentDetailsRows), "Course Purchases");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(courseSummaryRows), "Course Summary");
+    XLSX.writeFile(workbook, "DK_Trading_Academy_Student_Course_Expiry_Report.xlsx");
+  };
+
+  if (!students.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No students registered yet.";
+    list.appendChild(empty);
+    return;
+  }
+  students.forEach(student => {
+    const purchases = purchasesByStudent.get(student.user_id) || [];
     const card = document.createElement("div");
     card.className = "card";
-
     const name = document.createElement("h3");
     name.textContent = student.student_name || "Name not provided";
-const studentId = document.createElement("p");
-studentId.textContent = "Student Number: " + student.student_number;
+    const studentId = document.createElement("p");
+    studentId.textContent = "Student Number: " + (student.student_number || "N/A");
     const email = document.createElement("p");
     email.textContent = student.student_email || "";
-
     const courses = document.createElement("p");
-    courses.textContent = "Purchased Courses: " +
-      (student.purchased_courses.length
-        ? student.purchased_courses.join(", ")
-        : "None");
-
+    courses.textContent = "Purchased Courses (" + purchases.length + "): " +
+      (purchases.length ? purchases.map(p => p.course + " [" + p.access_status + ", expires " + displayDate(p.expiry_date) + "]").join(", ") : "None");
     card.append(name, email, studentId, courses);
     const detailsButton = document.createElement("button");
-detailsButton.textContent = "View Full Details";
-
-detailsButton.onclick = () => {
-  showStudentDetails(student);
-};
-
-card.appendChild(detailsButton);
+    detailsButton.textContent = "View Full Details";
+    detailsButton.onclick = () => showStudentDetails(student);
+    card.appendChild(detailsButton);
     list.appendChild(card);
   });
   search.addEventListener("input", () => {
-  const query = search.value.toLowerCase();
-
-  Array.from(list.querySelectorAll(".card")).forEach(card => {
-    card.style.display =
-      card.textContent.toLowerCase().includes(query)
-        ? "block"
-        : "none";
+    const query = search.value.toLowerCase();
+    Array.from(list.querySelectorAll(".card")).forEach(card => {
+      card.style.display = card.textContent.toLowerCase().includes(query) ? "block" : "none";
+    });
   });
-});
 }
 async function loadAdminCourseManager() {
   const box=document.getElementById("adminCourseManager");if(!box)return;
