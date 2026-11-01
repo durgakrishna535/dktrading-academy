@@ -829,6 +829,21 @@ footer {
     <div id="profileMessage" role="status"></div>
   </div>
 </div>
+  <!-- Admin Panel -->
+<div class="modal" id="adminModal">
+  <div class="modal-box" style="max-width:700px;">
+    <button class="close" onclick="closeAdminPanel()">×</button>
+
+    <h2>DK Trading Academy – Admin Panel</h2>
+
+    <h3>Dashboard</h3>
+    <p>Welcome, Academy Admin!</p>
+
+    <div id="adminContent">
+      Loading admin details...
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 <script>
 let telugu = false;
@@ -1223,7 +1238,35 @@ async function checkAdminAccess(user) {
     adminButton.style.display = "inline-block";
   }
 }
+async function openAdminPanel() {
+  const { data: userData, error: userError } =
+    await db.auth.getUser();
 
+  if (userError || !userData.user) {
+    alert("Please login first.");
+    return;
+  }
+
+  const { data, error } = await db
+    .from("academy_admins")
+    .select("user_id")
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (error || !data) {
+    alert("Admin access denied.");
+    return;
+  }
+
+  document.getElementById("adminContent").textContent =
+    "Admin access verified for: " + userData.user.email;
+
+  document.getElementById("adminModal").classList.add("show");
+}
+
+function closeAdminPanel() {
+  document.getElementById("adminModal").classList.remove("show");
+}
 db.auth.onAuthStateChange((event, session) => {
   document.getElementById("authNav").style.display =
     session ? "none" : "block";
