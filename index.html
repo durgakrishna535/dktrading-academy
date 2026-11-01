@@ -974,11 +974,15 @@ async function buyCourse(courseId) {
 
           if (verifyError) throw verifyError;
 
-          if (result.verified && result.enrolled) {
-            alert("Payment successful! Course enrollment completed.");
-          } else {
-            alert("Payment received, but enrollment needs verification. Please contact support.");
-          }
+         if (result.verified && result.enrolled) {
+  const { data: { user } } = await db.auth.getUser();
+
+  if (user) {
+    await showDashboard(user);
+  }
+
+  alert("Payment successful! Course enrollment completed.");
+}
         } catch (error) {
           console.error(error);
           alert("Payment verification failed. Please contact support before trying again.");
