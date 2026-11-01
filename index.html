@@ -1328,7 +1328,7 @@ list.appendChild(search);
     const name = document.createElement("h3");
     name.textContent = student.student_name || "Name not provided";
 const studentId = document.createElement("p");
-studentId.textContent = "Student ID: " + student.student_id;
+studentId.textContent = "Student Number: " + student.student_number;
     const email = document.createElement("p");
     email.textContent = student.student_email || "";
 
@@ -1346,7 +1346,7 @@ detailsButton.onclick = () => {
   alert(
     "Student Name: " + student.student_name +
     "\nEmail: " + student.student_email +
-    "\nStudent ID: " + student.student_id +
+    "\nStudent Number: " + student.student_number +
     "\nPurchased Courses: " +
     (student.purchased_courses.length
       ? student.purchased_courses.join(", ")
