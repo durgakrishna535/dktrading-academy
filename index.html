@@ -974,6 +974,7 @@ footer {
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js"></script>
 <script>
 let telugu = false;
 let authMode = "login";
@@ -1193,6 +1194,54 @@ const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
+
+// Resumable uploads for large private lesson videos (TUS protocol).
+async function uploadAcademyVideoResumable(path, file, onProgress) {
+  if (!window.tus || !window.tus.Upload) {
+    throw new Error("Resumable upload library did not load. Refresh and try again.");
+  }
+  const { data: sessionData, error: sessionError } = await db.auth.getSession();
+  if (sessionError) throw sessionError;
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) throw new Error("Please sign in again before uploading.");
+
+  return new Promise((resolve, reject) => {
+    const upload = new tus.Upload(file, {
+      endpoint: SUPABASE_URL + "/storage/v1/upload/resumable",
+      retryDelays: [0, 1000, 3000, 5000, 10000, 20000],
+      chunkSize: 6 * 1024 * 1024,
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      headers: {
+        authorization: "Bearer " + accessToken,
+        apikey: SUPABASE_KEY,
+        "x-upsert": "false"
+      },
+      metadata: {
+        bucketName: "academy-videos",
+        objectName: path,
+        contentType: file.type || "application/octet-stream",
+        cacheControl: "3600"
+      },
+      onError(error) {
+        reject(error);
+      },
+      onProgress(bytesUploaded, bytesTotal) {
+        if (typeof onProgress === "function") {
+          onProgress(bytesUploaded, bytesTotal);
+        }
+      },
+      onSuccess() {
+        resolve(path);
+      }
+    });
+
+    upload.findPreviousUploads().then(previousUploads => {
+      if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]);
+      upload.start();
+    }).catch(reject);
+  });
+}
 
 async function submitAuth(event) {
   event.preventDefault();
@@ -2367,14 +2416,14 @@ async function loadAdminLessonManager() {
  const save=document.createElement("button");save.textContent="Save lesson";const del=document.createElement("button");del.textContent="Delete lesson";del.style.marginLeft="8px";del.style.background="#b91c1c";const msg=document.createElement("span");
  save.onclick=async()=>{const selected=file.files?.[0],value=url.value.trim();if(selected&&value){msg.textContent=" Choose URL or file, not both.";return;}if(selected&&(!["video/mp4","video/webm","video/quicktime"].includes(selected.type)||selected.size>2*1024*1024*1024)){msg.textContent="Use MP4, WebM or MOV up to 2 GB.";return;}if(value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{msg.textContent="Enter valid http/https URL.";return;}}
  save.disabled=true;msg.textContent=" Saving...";const {error:ue}=await db.from("academy_course_lessons").update({title:title.value.trim(),is_published:pub.checked}).eq("id",item.id);let err=ue,newPath=null;
- if(!err&&selected){const path=course.value+"/"+item.lesson_number+"/"+crypto.randomUUID()+"-"+selected.name.replace(/[^a-zA-Z0-9._-]/g,"_");const {error:up}=await db.storage.from("academy-videos").upload(path,selected,{contentType:selected.type});if(up)err=up;else newPath=path;}
+ if(!err&&selected){const path=course.value+"/"+item.lesson_number+"/"+crypto.randomUUID()+"-"+selected.name.replace(/[^a-zA-Z0-9._-]/g,"_");try{await uploadAcademyVideoResumable(path,selected,(sent,total)=>{msg.textContent=" Uploading video "+Math.floor(sent/total*100)+"% ("+(sent/1024/1024).toFixed(0)+" / "+(total/1024/1024).toFixed(0)+" MB)";});newPath=path;}catch(up){err=up;}}
  if(!err&&(selected||value||rm.checked)){const {error:re2}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:item.lesson_number,video_url:selected?null:(value||null),video_storage_path:newPath,updated_at:new Date().toISOString()},{onConflict:"course_id,lesson_number"});if(re2)err=re2;else if(old.video_storage_path)await db.storage.from("academy-videos").remove([old.video_storage_path]);}
  msg.textContent=err?" "+err.message:" Saved";save.disabled=false;if(!err)render();};
  del.onclick=async()=>{if(!confirm("Delete this lesson and its video?"))return;const {error:de}=await db.from("academy_course_lessons").delete().eq("id",item.id);if(de){msg.textContent=de.message;return;}await db.from("academy_lesson_resources").delete().eq("course_id",course.value).eq("lesson_number",item.lesson_number);if(old.video_storage_path)await db.storage.from("academy-videos").remove([old.video_storage_path]);render();};
  row.append(h,title,current,document.createTextNode("Choose ONE video source:"),url,choice,file,rmLabel,pubLabel,save,del,msg);list.appendChild(row);});};
  course.onchange=render;
  add.onclick=async()=>{const name=newTitle.value.trim(),value=newUrl.value.trim(),file=newFile.files?.[0];if(!name){status.textContent="Enter lesson title.";return;}if(value&&file){status.textContent="Choose URL or file, not both.";return;}if(value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{status.textContent="Invalid video URL.";return;}}if(file&&(!["video/mp4","video/webm","video/quicktime"].includes(file.type)||file.size>2*1024*1024*1024)){status.textContent="Use MP4, WebM or MOV up to 2 GB.";return;}
- const {data:rows,error:e}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",course.value).order("lesson_number",{ascending:false}).limit(1);if(e){status.textContent=e.message;return;}const next=Number(rows?.[0]?.lesson_number||0)+1;const {error:ie}=await db.from("academy_course_lessons").insert({course_id:course.value,lesson_number:next,title:name,is_published:true});if(ie){status.textContent=ie.message;return;}let path=null;if(file){path=course.value+"/"+next+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const {error:ve}=await db.storage.from("academy-videos").upload(path,file,{contentType:file.type});if(ve){status.textContent="Lesson added; video upload failed: "+ve.message;render();return;}}
+ const {data:rows,error:e}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",course.value).order("lesson_number",{ascending:false}).limit(1);if(e){status.textContent=e.message;return;}const next=Number(rows?.[0]?.lesson_number||0)+1;const {error:ie}=await db.from("academy_course_lessons").insert({course_id:course.value,lesson_number:next,title:name,is_published:true});if(ie){status.textContent=ie.message;return;}let path=null;if(file){path=course.value+"/"+next+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");try{await uploadAcademyVideoResumable(path,file,(sent,total)=>{status.textContent="Uploading video "+Math.floor(sent/total*100)+"% ("+(sent/1024/1024).toFixed(0)+" / "+(total/1024/1024).toFixed(0)+" MB)";});}catch(ve){status.textContent="Lesson added; video upload failed: "+ve.message;render();return;}}
  if(value||path){const {error:re2}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:next,video_url:value||null,video_storage_path:path},{onConflict:"course_id,lesson_number"});if(re2){status.textContent="Lesson added; video save failed: "+re2.message;render();return;}}newTitle.value="";newUrl.value="";newFile.value="";status.textContent="Lesson added.";render();};
  box.append(course,newTitle,newUrl,newFile,add,status,list);await render();
 }
