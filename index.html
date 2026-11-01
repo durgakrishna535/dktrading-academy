@@ -812,51 +812,8 @@ footer {
     <h2>Our Learning Programs</h2>
     <p>Choose individual courses or get the complete learning bundle.</p>
   </div>
-
-  <div class="grid">
-
-    <div class="card course-card course-stock">
-      <div class="icon">📊</div>
-      <h3>Stock Market Basics</h3>
-      <p>Understand market fundamentals, exchanges, orders and investing terminology.</p>
-      <div class="course-price">₹999</div>
-      <button onclick="buyCourse('stock-market-basics')">Buy Now</button>
-    </div>
-
-    <div class="card course-card course-technical">
-      <div class="icon">📈</div>
-      <h3>Technical Analysis</h3>
-      <p>Learn charts, candlesticks, indicators and price action concepts.</p>
-      <div class="course-price">₹1,299</div>
-      <button onclick="buyCourse('technical-analysis')">Buy Now</button>
-    </div>
-
-    <div class="card course-card course-risk">
-      <div class="icon">⚖️</div>
-      <h3>Risk Management</h3>
-      <p>Study position sizing, stop losses and disciplined trading practices.</p>
-      <div class="course-price">₹999</div>
-      <button onclick="buyCourse('risk-management')">Buy Now</button>
-    </div>
-
-    <div class="card course-card course-fo">
-      <div class="icon">🎯</div>
-      <h3>F&O Education</h3>
-      <p>Understand futures, options, expiry, option Greeks and derivatives risks.</p>
-      <div class="course-price">₹3,999</div>
-      <button onclick="buyCourse('fo-education')">Buy Now</button>
-    </div>
-
-  </div>
-
-  <div class="card combo course-combo">
-    <div class="tag">COMPLETE LEARNING BUNDLE</div>
-    <h2>All Courses Combo</h2>
-    <p>Get access to all four courses with one purchase.</p>
-    <div class="course-price">₹6,999</div>
-    <p>One-time payment · No monthly subscription</p>
-    <button onclick="buyCourse('all-courses-combo')">Buy All Courses</button>
-  </div>
+  <div id="publicCourseGrid" class="grid"><div class="card">Loading courses...</div></div>
+  <div id="publicComboCourse"></div>
 </section>
 
 <section id="live">
@@ -1303,12 +1260,59 @@ async function updatePassword() {
 
   await db.auth.signOut();
 }
-const courseLessons = {
+const defaultCourseLessons = {
   "stock-market-basics": ["Introduction to the Stock Market", "Exchanges and Market Participants", "Order Types and Trading Basics", "Demat and Trading Accounts", "Basic Investing Terminology"],
   "technical-analysis": ["Introduction to Charts", "Candlestick Basics", "Support and Resistance", "Trendlines and Chart Patterns", "Technical Indicators"],
   "risk-management": ["Why Risk Management Matters", "Position Sizing", "Stop-Loss Planning", "Risk-to-Reward Ratio", "Trading Psychology and Discipline"],
   "fo-education": ["Introduction to Futures and Options", "Call and Put Options", "Option Expiry and Moneyness", "Option Greeks Overview", "F&O Risks and Risk Controls"]
 };
+let academyCourseCache = [];
+let academyLessonCache = [];
+const courseStyleClass = {
+  "stock-market-basics":"course-stock",
+  "technical-analysis":"course-technical",
+  "risk-management":"course-risk",
+  "fo-education":"course-fo",
+  "all-courses-combo":"course-combo"
+};
+const formatINR = paise => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(Number(paise||0)/100);
+
+async function loadAcademyCourses() {
+  const grid = document.getElementById("publicCourseGrid");
+  const combo = document.getElementById("publicComboCourse");
+  const {data,error}=await db.from("academy_courses").select("course_id,title,description,price_paise,is_active,display_order").eq("is_active",true).order("display_order",{ascending:true});
+  if(error){console.error("Course catalogue:",error);if(grid)grid.textContent="Courses are temporarily unavailable. Please refresh.";return;}
+  academyCourseCache=data||[];
+  if(!grid||!combo)return;
+  grid.textContent="";combo.textContent="";
+  academyCourseCache.forEach(course=>{
+    const card=document.createElement("div");
+    card.className="card course-card "+(courseStyleClass[course.course_id]||"");
+    const icon=document.createElement("div");icon.className="icon";icon.textContent=({ "stock-market-basics":"📊","technical-analysis":"📈","risk-management":"⚖️","fo-education":"🎯"})[course.course_id]||"📚";
+    const title=document.createElement("h3");title.textContent=course.title;
+    const desc=document.createElement("p");desc.textContent=course.description||"";
+    const price=document.createElement("div");price.className="course-price";price.textContent=formatINR(course.price_paise);
+    const button=document.createElement("button");button.textContent="Buy Now";button.onclick=()=>buyCourse(course.course_id);
+    card.append(icon,title,desc,price,button);grid.appendChild(card);
+  });
+  const bundle=academyCourseCache.find(course=>course.course_id==="all-courses-combo");
+  if(bundle){
+    const card=document.createElement("div");card.className="card combo course-combo";
+    const tag=document.createElement("div");tag.className="tag";tag.textContent="COMPLETE LEARNING BUNDLE";
+    const title=document.createElement("h2");title.textContent=bundle.title;
+    const desc=document.createElement("p");desc.textContent=bundle.description||"";
+    const price=document.createElement("div");price.className="course-price";price.textContent=formatINR(bundle.price_paise);
+    const note=document.createElement("p");note.textContent="One-time payment · No monthly subscription";
+    const button=document.createElement("button");button.textContent="Buy All Courses";button.onclick=()=>buyCourse(bundle.course_id);
+    card.append(tag,title,desc,price,note,button);combo.appendChild(card);
+  }
+}
+
+async function loadAcademyLessons(courseId) {
+  const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title,video_url").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
+  if(error){console.error("Dynamic lessons:",error);return null;}
+  return data||[];
+}
 
 async function showDashboard(user) {
   document.getElementById("student-dashboard").style.display = "block";
@@ -1327,13 +1331,6 @@ async function showDashboard(user) {
   const courseList = document.createElement("div");
   courseList.textContent = "Loading courses...";
   dashboard.append(heading, email, coursesHeading, summary, courseList);
-
-  const courseNames = {
-    "stock-market-basics": "Stock Market Basics",
-    "technical-analysis": "Technical Analysis",
-    "risk-management": "Risk Management",
-    "fo-education": "F&O Education"
-  };
 
   const { data: enrollments, error: enrollmentError } = await db
     .from("course_enrollments")
@@ -1368,8 +1365,14 @@ async function showDashboard(user) {
 
   for (const item of enrollments) {
     const courseId = item.course_id;
-    const lessons = courseLessons[courseId];
-    if (!lessons) continue;
+    let lessonRows = await loadAcademyLessons(courseId);
+    if (lessonRows === null) {
+      const fallback = defaultCourseLessons[courseId] || [];
+      lessonRows = fallback.map((title,index)=>({lesson_number:index+1,title,video_url:null}));
+    }
+    const lessons = lessonRows;
+    if (!lessons.length) continue;
+    const courseRecord = academyCourseCache.find(course=>course.course_id===courseId);
 
     const card = document.createElement("div");
     const courseColourClass = {
@@ -1382,7 +1385,7 @@ async function showDashboard(user) {
     card.style.marginBottom = "18px";
 
     const title = document.createElement("h3");
-    title.textContent = "✓ " + (courseNames[courseId] || courseId);
+    title.textContent = "✓ " + (courseRecord?.title || courseId);
     const progressText = document.createElement("p");
     const track = document.createElement("div");
     track.className = "progress-track";
@@ -1395,10 +1398,10 @@ async function showDashboard(user) {
     const courseProgress = (progressRows || []).filter(row => row.course_id === courseId && row.completed);
     const completedSet = new Set(courseProgress.map(row => row.lesson_id));
     totalLessons += lessons.length;
-    completedLessons += lessons.filter((_, index) => completedSet.has(String(index + 1))).length;
+    completedLessons += lessons.filter(lesson => completedSet.has(String(lesson.lesson_number))).length;
 
     const renderProgress = () => {
-      const done = lessons.filter((_, index) => completedSet.has(String(index + 1))).length;
+      const done = lessons.filter(lesson => completedSet.has(String(lesson.lesson_number))).length;
       const percent = Math.round(done / lessons.length * 100);
       progressText.textContent = done + " of " + lessons.length + " lessons completed (" + percent + "%)";
       fill.style.width = percent + "%";
@@ -1420,7 +1423,9 @@ async function showDashboard(user) {
     progressText.setAttribute("data-course-lesson-count", String(lessons.length));
     renderProgress();
 
-    lessons.forEach((lessonName, index) => {
+    lessons.forEach((lessonItem) => {
+      const lessonName = lessonItem.title;
+      const lessonNumber = String(lessonItem.lesson_number);
       const row = document.createElement("div");
       row.style.display = "flex";
       row.style.alignItems = "center";
@@ -1431,15 +1436,15 @@ async function showDashboard(user) {
       row.style.borderBottom = "1px solid #263326";
 
       const label = document.createElement("span");
-      label.textContent = "Lesson " + (index + 1) + ": " + lessonName;
+      label.textContent = "Lesson " + lessonNumber + ": " + lessonName;
       const action = document.createElement("button");
       action.type = "button";
-      action.className = completedSet.has(String(index + 1)) ? "lesson-completed-btn" : "lesson-pending-btn";
-      action.textContent = completedSet.has(String(index + 1)) ? "Completed ✓" : "Mark Complete";
+      action.className = completedSet.has(lessonNumber) ? "lesson-completed-btn" : "lesson-pending-btn";
+      action.textContent = completedSet.has(lessonNumber) ? "Completed ✓" : "Mark Complete";
       action.disabled = !progressReady;
       action.onclick = async () => {
         action.disabled = true;
-        const lessonId = String(index + 1);
+        const lessonId = lessonNumber;
         const wasCompleted = completedSet.has(lessonId);
         const { error: saveError } = await db.from("lesson_progress").upsert({
           user_id: user.id,
@@ -1588,6 +1593,15 @@ adminContent.innerHTML = `
   </div>
 
   <div class="card">
+    <h3>Course & Price Management</h3>
+    <p>Change course details and displayed prices. Prices are stored in paise.</p>
+    <div id="adminCourseManager">Loading courses...</div>
+  </div>
+  <div class="card">
+    <h3>Lesson Management</h3>
+    <div id="adminLessonManager">Loading lessons...</div>
+  </div>
+  <div class="card">
     <h3>Student Management</h3>
     <button onclick="loadAdminStudents()">View Registered Students</button>
     <div id="adminStudentList"></div>
@@ -1596,6 +1610,8 @@ adminContent.innerHTML = `
 document.body.style.overflow = "hidden";
   document.getElementById("adminModal").classList.add("show");
   loadAdminPayments();
+  loadAdminCourseManager();
+  loadAdminLessonManager();
 }
   function closeStudentDetails() {
   document.getElementById("studentDetailsModal").classList.remove("show");
@@ -1712,6 +1728,77 @@ card.appendChild(detailsButton);
   });
 });
 }
+async function loadAdminCourseManager() {
+  const box=document.getElementById("adminCourseManager");if(!box)return;
+  box.textContent="Loading course settings...";
+  const {data,error}=await db.from("academy_courses").select("course_id,title,description,price_paise,is_active,display_order").order("display_order");
+  if(error){box.textContent="Unable to load courses: "+error.message;return;}
+  box.textContent="";
+  (data||[]).forEach(course=>{
+    const wrap=document.createElement("div");wrap.className="card";wrap.style.margin="12px 0";
+    const heading=document.createElement("h4");heading.textContent=course.course_id;
+    const title=document.createElement("input");title.value=course.title||"";title.placeholder="Course title";title.style.width="100%";
+    const description=document.createElement("textarea");description.value=course.description||"";description.placeholder="Course description";description.style.width="100%";description.rows=2;
+    const price=document.createElement("input");price.type="number";price.min="1";price.step="1";price.value=(Number(course.price_paise||0)/100).toFixed(2);price.placeholder="Price in rupees";price.style.width="100%";
+    const activeLabel=document.createElement("label");const active=document.createElement("input");active.type="checkbox";active.checked=!!course.is_active;activeLabel.append(active,document.createTextNode(" Visible on website"));
+    const save=document.createElement("button");save.textContent="Save course";
+    const msg=document.createElement("p");
+    save.onclick=async()=>{
+      const rupees=Number(price.value);
+      if(!title.value.trim()||!Number.isFinite(rupees)||rupees<=0||!Number.isInteger(Math.round(rupees*100))){msg.textContent="Enter a title and valid price.";return;}
+      save.disabled=true;msg.textContent="Saving...";
+      const {error:saveError}=await db.from("academy_courses").update({title:title.value.trim(),description:description.value.trim(),price_paise:Math.round(rupees*100),is_active:active.checked,updated_at:new Date().toISOString()}).eq("course_id",course.course_id);
+      if(saveError){msg.textContent="Save failed: "+saveError.message;}else{msg.textContent="Saved. Refreshing public catalogue...";await loadAcademyCourses();}
+      save.disabled=false;
+    };
+    wrap.append(heading,title,description,price,activeLabel,save,msg);box.appendChild(wrap);
+  });
+}
+
+async function loadAdminLessonManager() {
+  const box=document.getElementById("adminLessonManager");if(!box)return;
+  const {data:courses,error:courseError}=await db.from("academy_courses").select("course_id,title").order("display_order");
+  if(courseError){box.textContent=courseError.message;return;}
+  box.textContent="";
+  const select=document.createElement("select");select.style.width="100%";
+  (courses||[]).filter(c=>c.course_id!=="all-courses-combo").forEach(course=>{const o=document.createElement("option");o.value=course.course_id;o.textContent=course.title;select.appendChild(o);});
+  const list=document.createElement("div");
+  const addTitle=document.createElement("input");addTitle.placeholder="New lesson title";addTitle.style.width="100%";
+  const addVideo=document.createElement("input");addVideo.placeholder="Optional video URL (https://...)";addVideo.style.width="100%";
+  const addButton=document.createElement("button");addButton.textContent="Add lesson";
+  const status=document.createElement("p");
+  const render=async()=>{
+    list.textContent="Loading lessons...";
+    const {data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number");
+    if(error){list.textContent="Unable to load lessons: "+error.message;return;}
+    list.textContent="";
+    (lessons||[]).forEach(lesson=>{
+      const row=document.createElement("div");row.className="card";row.style.margin="10px 0";
+      const name=document.createElement("p");name.textContent="Lesson "+lesson.lesson_number;
+      const title=document.createElement("input");title.value=lesson.title;title.style.width="100%";
+      const video=document.createElement("input");video.value=lesson.video_url||"";video.placeholder="Video URL";video.style.width="100%";
+      const publishedLabel=document.createElement("label");const published=document.createElement("input");published.type="checkbox";published.checked=!!lesson.is_published;publishedLabel.append(published,document.createTextNode(" Published to students"));
+      const save=document.createElement("button");save.textContent="Save";
+      const remove=document.createElement("button");remove.textContent="Delete";remove.style.marginLeft="8px";remove.style.background="#b91c1c";remove.style.color="#fff";
+      const msg=document.createElement("span");
+      save.onclick=async()=>{save.disabled=true;const {error}=await db.from("academy_course_lessons").update({title:title.value.trim(),video_url:video.value.trim()||null,is_published:published.checked}).eq("id",lesson.id);msg.textContent=error?" "+error.message:" Saved";save.disabled=false;};
+      remove.onclick=async()=>{if(!confirm("Delete this lesson? Existing progress for this lesson may remain in student records."))return;const {error}=await db.from("academy_course_lessons").delete().eq("id",lesson.id);if(error)msg.textContent=" "+error.message;else render();};
+      row.append(name,title,video,publishedLabel,save,remove,msg);list.appendChild(row);
+    });
+  };
+  select.onchange=render;
+  addButton.onclick=async()=>{
+    const title=addTitle.value.trim();if(!title){status.textContent="Enter lesson title.";return;}
+    const {data:existing,error}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",select.value).order("lesson_number",{ascending:false}).limit(1);
+    if(error){status.textContent=error.message;return;}
+    const next=Number(existing?.[0]?.lesson_number||0)+1;
+    const {error:insertError}=await db.from("academy_course_lessons").insert({course_id:select.value,lesson_number:next,title,video_url:addVideo.value.trim()||null,is_published:true});
+    if(insertError){status.textContent="Add failed: "+insertError.message;return;}
+    addTitle.value="";addVideo.value="";status.textContent="Lesson added.";render();
+  };
+  box.append(select,addTitle,addVideo,addButton,status,list);await render();
+}
+
 async function loadAdminPayments() {
   const history = document.getElementById("adminPaymentHistory");
   const revenueEl = document.getElementById("adminTotalRevenue");
@@ -1963,6 +2050,10 @@ function closeAdminPanel() {
   document.getElementById("adminModal").classList.remove("show");
   document.body.style.overflow = "";
 }
+loadAcademyCourses();
+window.addEventListener("focus",()=>loadAcademyCourses());
+const academyRealtime=db.channel("academy-content-live").on("postgres_changes",{event:"*",schema:"public",table:"academy_courses"},()=>loadAcademyCourses()).subscribe();
+
 db.auth.onAuthStateChange((event, session) => {
   document.getElementById("authNav").style.display =
     session ? "none" : "block";
