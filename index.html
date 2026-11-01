@@ -1420,6 +1420,17 @@ adminContent.innerHTML = `
   </div>
 
   <div class="card">
+    <h3>Total Captured Revenue</h3>
+    <p class="course-price" id="adminTotalRevenue">Loading...</p>
+    <p id="adminPaymentCount">Loading payment records...</p>
+  </div>
+
+  <div class="card">
+    <h3>Payment History</h3>
+    <div id="adminPaymentHistory">Loading payments...</div>
+  </div>
+
+  <div class="card">
     <h3>Student Management</h3>
     <button onclick="loadAdminStudents()">View Registered Students</button>
     <div id="adminStudentList"></div>
@@ -1427,6 +1438,7 @@ adminContent.innerHTML = `
 `;
 document.body.style.overflow = "hidden";
   document.getElementById("adminModal").classList.add("show");
+  loadAdminPayments();
 }
   function closeStudentDetails() {
   document.getElementById("studentDetailsModal").classList.remove("show");
@@ -1543,6 +1555,102 @@ card.appendChild(detailsButton);
   });
 });
 }
+async function loadAdminPayments() {
+  const history = document.getElementById("adminPaymentHistory");
+  const revenueEl = document.getElementById("adminTotalRevenue");
+  const countEl = document.getElementById("adminPaymentCount");
+  if (!history || !revenueEl || !countEl) return;
+
+  const { data: payments, error } = await db
+    .from("academy_payments")
+    .select("course_id,razorpay_payment_id,amount_paise,currency,payment_status,created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    history.textContent = "Unable to load payment history: " + error.message;
+    revenueEl.textContent = "Unavailable";
+    countEl.textContent = "";
+    console.error("Admin payment history error:", error);
+    return;
+  }
+
+  const rows = payments || [];
+  const captured = rows.filter(p => p.payment_status === "captured");
+  const totalPaise = captured.reduce((sum, p) => sum + Number(p.amount_paise || 0), 0);
+  revenueEl.textContent = new Intl.NumberFormat("en-IN", {
+    style: "currency", currency: "INR", maximumFractionDigits: 2
+  }).format(totalPaise / 100);
+  countEl.textContent = rows.length + " payment record(s) · " + captured.length + " captured";
+
+  history.innerHTML = "";
+  if (!rows.length) {
+    history.textContent = "No payment records found.";
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.style.overflowX = "auto";
+  const table = document.createElement("table");
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+  table.style.minWidth = "620px";
+
+  const headers = ["Course", "Amount", "Status", "Payment date & time (IST)", "Payment ID"];
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  headers.forEach(label => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    th.style.textAlign = "left";
+    th.style.padding = "10px";
+    th.style.borderBottom = "1px solid #39ff1460";
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const courseNames = {
+    "stock-market-basics": "Stock Market Basics",
+    "technical-analysis": "Technical Analysis",
+    "risk-management": "Risk Management",
+    "fo-education": "F&O Education",
+    "all-courses-combo": "All Courses Combo"
+  };
+  rows.forEach(payment => {
+    const tr = document.createElement("tr");
+    const amount = new Intl.NumberFormat("en-IN", {
+      style: "currency", currency: payment.currency || "INR",
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    }).format(Number(payment.amount_paise || 0) / 100);
+    const timestamp = payment.created_at
+      ? new Intl.DateTimeFormat("en-IN", {
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+          hour12: true, timeZone: "Asia/Kolkata", timeZoneName: "short"
+        }).format(new Date(payment.created_at))
+      : "N/A";
+    [
+      courseNames[payment.course_id] || payment.course_id || "N/A",
+      amount,
+      payment.payment_status || "N/A",
+      timestamp,
+      payment.razorpay_payment_id || "N/A"
+    ].forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = String(value);
+      td.style.padding = "10px";
+      td.style.borderBottom = "1px solid #263326";
+      td.style.verticalAlign = "top";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  history.appendChild(wrapper);
+}
+
 function closeAdminPanel() {
   document.getElementById("adminModal").classList.remove("show");
   document.body.style.overflow = "";
