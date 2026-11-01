@@ -1860,14 +1860,23 @@ async function loadPublicAcademyUpdates() {
 }
 
 async function loadAcademyLessons(courseId) {
-  const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title,video_url").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
+  const {data,error}=await db.from("academy_course_lessons").select("lesson_number,title").eq("course_id",courseId).eq("is_published",true).order("lesson_number",{ascending:true});
   if(error){console.error("Dynamic lessons:",error);return null;}
-  if(!data||!data.length){
-    return (defaultCourseLessons[courseId]||[]).map((title,index)=>({lesson_number:index+1,title,video_url:null}));
-  }
-  return data;
+  const lessons=(!data||!data.length)?(defaultCourseLessons[courseId]||[]).map((title,index)=>({lesson_number:index+1,title})):data;
+  const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url").eq("course_id",courseId);
+  if(re){console.error("Private lesson resources:",re);return lessons.map(x=>({...x,video_url:null}));}
+  const map=new Map((resources||[]).map(x=>[Number(x.lesson_number),x.video_url||null]));
+  return lessons.map(x=>({...x,video_url:map.get(Number(x.lesson_number))||null}));
 }
 
+async function loadStudentPdfLibrary(enrollments){
+ const box=document.getElementById("studentPdfLibrary");if(!box)return;const owned=(enrollments||[]).map(x=>x.course_id);
+ const ids=owned.includes("all-courses-combo")?academyCourseCache.map(x=>x.course_id).filter(x=>x!=="all-courses-combo"):owned;
+ if(!ids.length){box.textContent="Purchase a course to access PDFs.";return;}
+ const {data,error}=await db.from("academy_course_pdfs").select("id,course_id,title,description,storage_path").in("course_id",ids).eq("is_published",true).order("display_order");
+ box.textContent="";if(error){box.textContent=error.message;return;}if(!data?.length){box.textContent="No PDFs published for your purchased courses yet.";return;}
+ data.forEach(pdf=>{const card=document.createElement("div");card.className="card";card.style.margin="10px 0";const h=document.createElement("h4");h.textContent=pdf.title;const d=document.createElement("p");const c=academyCourseCache.find(x=>x.course_id===pdf.course_id);d.textContent=(c?.title||pdf.course_id)+" · "+(pdf.description||"");const btn=document.createElement("button");btn.textContent="View PDF";btn.onclick=async()=>{btn.disabled=true;const {data:signed,error:e}=await db.storage.from("academy-pdfs").createSignedUrl(pdf.storage_path,60);if(e)alert(e.message);else{const opened=window.open(signed.signedUrl+"#toolbar=0&navpanes=0","_blank","noopener,noreferrer");if(!opened)alert("Allow pop-ups to view PDF.");}btn.disabled=false;};card.append(h,d,btn);box.appendChild(card);});
+}
 async function showDashboard(user) {
   await loadAcademyCourses();
   document.getElementById("student-dashboard").style.display = "block";
@@ -1887,7 +1896,10 @@ async function showDashboard(user) {
   courseList.textContent = "Loading courses...";
   const updates = document.createElement("div");
   updates.id = "studentAcademyUpdates";
-  dashboard.append(heading, email, updates, coursesHeading, summary, courseList);
+  const pdfSection=document.createElement("section");pdfSection.style.padding="18px 0";
+  const pdfHeading=document.createElement("h3");pdfHeading.textContent="📄 PDFs";
+  const pdfList=document.createElement("div");pdfList.id="studentPdfLibrary";pdfList.textContent="Loading PDFs...";pdfSection.append(pdfHeading,pdfList);
+  dashboard.append(heading, email, updates, coursesHeading, summary, courseList, pdfSection);
   await renderAcademyUpdates(updates, true);
 
   const { data: enrollments, error: enrollmentError } = await db
@@ -1995,6 +2007,7 @@ async function showDashboard(user) {
 
       const label = document.createElement("span");
       label.textContent = "Lesson " + lessonNumber + ": " + lessonName;
+      if(lessonItem.video_url){const watch=document.createElement("button");watch.type="button";watch.textContent="▶ Watch Lesson";watch.onclick=()=>{const safe=makeExternalLink(lessonItem.video_url,"Open video");if(!safe){alert("Invalid video URL.");return;}const opened=window.open(safe.href,"_blank","noopener,noreferrer");if(!opened)alert("Allow pop-ups to watch the video.");};row.appendChild(watch);}
       const action = document.createElement("button");
       action.type = "button";
       action.className = completedSet.has(lessonNumber) ? "lesson-completed-btn" : "lesson-pending-btn";
@@ -2036,6 +2049,8 @@ async function showDashboard(user) {
     }
     courseList.appendChild(card);
   }
+
+  await loadStudentPdfLibrary(enrollments);
 
   const overall = document.getElementById("overallLearningProgress");
   if (progressReady && overall) {
@@ -2160,6 +2175,11 @@ adminContent.innerHTML = `
     <div id="adminLessonManager">Loading lessons...</div>
   </div>
   <div class="card">
+    <h3>PDF Management</h3>
+    <p>Upload, edit, publish or delete PDFs for enrolled students.</p>
+    <div id="adminPdfManager">Loading PDF tools...</div>
+  </div>
+  <div class="card">
     <h3>Announcement Management</h3>
     <p>Create, publish, edit or remove notices shown on the website and student dashboard.</p>
     <div id="adminAnnouncementManager">Loading announcements...</div>
@@ -2180,6 +2200,7 @@ document.body.style.overflow = "hidden";
   loadAdminPayments();
   loadAdminCourseManager();
   loadAdminLessonManager();
+  loadAdminPdfManager();
   loadAdminAnnouncementManager();
   loadAdminLiveClassManager();
 }
@@ -2326,54 +2347,47 @@ async function loadAdminCourseManager() {
 }
 
 async function loadAdminLessonManager() {
-  const box=document.getElementById("adminLessonManager");if(!box)return;
-  const {data:courses,error:courseError}=await db.from("academy_courses").select("course_id,title").order("display_order");
-  if(courseError){box.textContent=courseError.message;return;}
-  box.textContent="";
-  const editableCourses=(courses||[]).filter(c=>c.course_id!=="all-courses-combo");
-  const select=document.createElement("select");select.style.width="100%";
-  editableCourses.forEach(course=>{const o=document.createElement("option");o.value=course.course_id;o.textContent=course.title;select.appendChild(o);});
-  const list=document.createElement("div");
-  const addTitle=document.createElement("input");addTitle.placeholder="New lesson title";addTitle.style.width="100%";
-  const addVideo=document.createElement("input");addVideo.placeholder="Optional video URL (https://...)";addVideo.style.width="100%";
-  const addButton=document.createElement("button");addButton.textContent="Add lesson";
-  const status=document.createElement("p");
-  const render=async()=>{
-    list.textContent="Loading lessons...";
-    let {data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number");
-    if(!error&&(!lessons||!lessons.length)){
-      const seed=(defaultCourseLessons[select.value]||[]).map((title,index)=>({course_id:select.value,lesson_number:index+1,title,is_published:true}));
-      if(seed.length){const seeded=await db.from("academy_course_lessons").insert(seed);if(seeded.error){list.textContent="Could not initialise lessons: "+seeded.error.message;return;}({data:lessons,error}=await db.from("academy_course_lessons").select("id,lesson_number,title,video_url,is_published").eq("course_id",select.value).order("lesson_number"));}
-    }
-    if(error){list.textContent="Unable to load lessons: "+error.message;return;}
-    list.textContent="";
-    (lessons||[]).forEach(lesson=>{
-      const row=document.createElement("div");row.className="card";row.style.margin="10px 0";
-      const name=document.createElement("p");name.textContent="Lesson "+lesson.lesson_number;
-      const title=document.createElement("input");title.value=lesson.title;title.style.width="100%";
-      const video=document.createElement("input");video.value=lesson.video_url||"";video.placeholder="Video URL";video.style.width="100%";
-      const publishedLabel=document.createElement("label");const published=document.createElement("input");published.type="checkbox";published.checked=!!lesson.is_published;publishedLabel.append(published,document.createTextNode(" Published to students"));
-      const save=document.createElement("button");save.textContent="Save";
-      const remove=document.createElement("button");remove.textContent="Delete";remove.style.marginLeft="8px";remove.style.background="#b91c1c";remove.style.color="#fff";
-      const msg=document.createElement("span");
-      save.onclick=async()=>{save.disabled=true;const {error}=await db.from("academy_course_lessons").update({title:title.value.trim(),video_url:video.value.trim()||null,is_published:published.checked}).eq("id",lesson.id);msg.textContent=error?" "+error.message:" Saved";save.disabled=false;};
-      remove.onclick=async()=>{if(!confirm("Delete this lesson? Existing progress for this lesson may remain in student records."))return;const {error}=await db.from("academy_course_lessons").delete().eq("id",lesson.id);if(error)msg.textContent=" "+error.message;else render();};
-      row.append(name,title,video,publishedLabel,save,remove,msg);list.appendChild(row);
-    });
-  };
-  select.onchange=render;
-  addButton.onclick=async()=>{
-    const title=addTitle.value.trim();if(!title){status.textContent="Enter lesson title.";return;}
-    const {data:existing,error}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",select.value).order("lesson_number",{ascending:false}).limit(1);
-    if(error){status.textContent=error.message;return;}
-    const next=Number(existing?.[0]?.lesson_number||0)+1;
-    const {error:insertError}=await db.from("academy_course_lessons").insert({course_id:select.value,lesson_number:next,title,video_url:addVideo.value.trim()||null,is_published:true});
-    if(insertError){status.textContent="Add failed: "+insertError.message;return;}
-    addTitle.value="";addVideo.value="";status.textContent="Lesson added.";render();
-  };
-  box.append(select,addTitle,addVideo,addButton,status,list);await render();
+ const box=document.getElementById("adminLessonManager");if(!box)return;
+ const {data:courses,error}=await db.from("academy_courses").select("course_id,title").order("display_order");if(error){box.textContent=error.message;return;}
+ box.textContent="";const choices=(courses||[]).filter(c=>c.course_id!=="all-courses-combo");
+ const course=document.createElement("select");course.style.width="100%";choices.forEach(c=>{const o=document.createElement("option");o.value=c.course_id;o.textContent=c.title;course.appendChild(o);});
+ const newTitle=document.createElement("input");newTitle.placeholder="New lesson title";newTitle.style.width="100%";
+ const newUrl=document.createElement("input");newUrl.type="url";newUrl.placeholder="Optional video URL";newUrl.style.width="100%";
+ const add=document.createElement("button");add.textContent="Add lesson";const status=document.createElement("p"),list=document.createElement("div");
+ const render=async()=>{
+  list.textContent="Loading lessons...";
+  let {data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number");
+  if(!e&&!lessons?.length){const seed=(defaultCourseLessons[course.value]||[]).map((title,index)=>({course_id:course.value,lesson_number:index+1,title,is_published:true}));if(seed.length){const ins=await db.from("academy_course_lessons").insert(seed);if(ins.error){list.textContent=ins.error.message;return;}({data:lessons,error:e}=await db.from("academy_course_lessons").select("id,lesson_number,title,is_published").eq("course_id",course.value).order("lesson_number"));}}
+  if(e){list.textContent=e.message;return;}
+  const {data:resources,error:re}=await db.from("academy_lesson_resources").select("lesson_number,video_url").eq("course_id",course.value);if(re){list.textContent=re.message;return;}
+  const map=new Map((resources||[]).map(r=>[Number(r.lesson_number),r.video_url||""]));list.textContent="";
+  (lessons||[]).forEach(item=>{
+   const row=document.createElement("div");row.className="card";row.style.margin="10px 0";const h=document.createElement("p");h.textContent="Lesson "+item.lesson_number;
+   const title=document.createElement("input");title.value=item.title||"";title.style.width="100%";
+   const url=document.createElement("input");url.type="url";url.value=map.get(Number(item.lesson_number))||"";url.placeholder="Video URL (https://...)";url.style.width="100%";
+   const label=document.createElement("label"),pub=document.createElement("input");pub.type="checkbox";pub.checked=!!item.is_published;label.append(pub,document.createTextNode(" Published"));
+   const save=document.createElement("button");save.textContent="Save";const del=document.createElement("button");del.textContent="Delete";del.style.marginLeft="8px";del.style.background="#b91c1c";const msg=document.createElement("span");
+   save.onclick=async()=>{save.disabled=true;const {error:ue}=await db.from("academy_course_lessons").update({title:title.value.trim(),is_published:pub.checked}).eq("id",item.id);let err=ue;const value=url.value.trim();if(!err&&value){try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{err=new Error("Enter a valid http/https URL.");}}if(!err){const {error:ve}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:item.lesson_number,video_url:value||null,updated_at:new Date().toISOString()},{onConflict:"course_id,lesson_number"});err=ve;}msg.textContent=err?" "+err.message:" Saved";save.disabled=false;};
+   del.onclick=async()=>{if(!confirm("Delete this lesson?"))return;const {error:de}=await db.from("academy_course_lessons").delete().eq("id",item.id);if(de){msg.textContent=de.message;return;}await db.from("academy_lesson_resources").delete().eq("course_id",course.value).eq("lesson_number",item.lesson_number);render();};
+   row.append(h,title,url,label,save,del,msg);list.appendChild(row);
+  });
+ };
+ course.onchange=render;
+ add.onclick=async()=>{const title=newTitle.value.trim(),url=newUrl.value.trim();if(!title){status.textContent="Enter lesson title.";return;}if(url){try{const u=new URL(url);if(!["http:","https:"].includes(u.protocol))throw Error();}catch{status.textContent="Invalid video URL.";return;}}const {data:rows,error:e}=await db.from("academy_course_lessons").select("lesson_number").eq("course_id",course.value).order("lesson_number",{ascending:false}).limit(1);if(e){status.textContent=e.message;return;}const next=Number(rows?.[0]?.lesson_number||0)+1;const {error:ie}=await db.from("academy_course_lessons").insert({course_id:course.value,lesson_number:next,title,is_published:true});if(ie){status.textContent=ie.message;return;}if(url){const {error:ve}=await db.from("academy_lesson_resources").upsert({course_id:course.value,lesson_number:next,video_url:url},{onConflict:"course_id,lesson_number"});if(ve){status.textContent="Lesson saved; video failed: "+ve.message;render();return;}}newTitle.value="";newUrl.value="";status.textContent="Lesson added.";render();};
+ box.append(course,newTitle,newUrl,add,status,list);await render();
 }
-
+async function loadAdminPdfManager(){
+ const box=document.getElementById("adminPdfManager");if(!box)return;
+ const {data:courses,error:ce}=await db.from("academy_courses").select("course_id,title").order("display_order");if(ce){box.textContent=ce.message;return;}
+ const choices=(courses||[]).filter(c=>c.course_id!=="all-courses-combo");box.textContent="";
+ const course=document.createElement("select");course.style.width="100%";choices.forEach(c=>{const o=document.createElement("option");o.value=c.course_id;o.textContent=c.title;course.appendChild(o);});
+ const title=document.createElement("input");title.placeholder="PDF title";title.style.width="100%";const desc=document.createElement("textarea");desc.placeholder="Description";desc.rows=2;desc.style.width="100%";const file=document.createElement("input");file.type="file";file.accept="application/pdf,.pdf";
+ const label=document.createElement("label"),published=document.createElement("input");published.type="checkbox";published.checked=true;label.append(published,document.createTextNode(" Publish to enrolled students"));
+ const upload=document.createElement("button");upload.textContent="Upload PDF";const status=document.createElement("p"),list=document.createElement("div");
+ const render=async()=>{list.textContent="Loading PDFs...";const {data,error}=await db.from("academy_course_pdfs").select("id,course_id,title,description,storage_path,is_published").order("display_order");if(error){list.textContent=error.message;return;}list.textContent="";(data||[]).forEach(item=>{const row=document.createElement("div");row.className="card";row.style.margin="10px 0";const courseName=document.createElement("p");courseName.textContent=choices.find(c=>c.course_id===item.course_id)?.title||item.course_id;const t=document.createElement("input");t.value=item.title||"";t.style.width="100%";const d=document.createElement("textarea");d.value=item.description||"";d.rows=2;d.style.width="100%";const l=document.createElement("label"),p=document.createElement("input");p.type="checkbox";p.checked=!!item.is_published;l.append(p,document.createTextNode(" Published"));const save=document.createElement("button");save.textContent="Save";const del=document.createElement("button");del.textContent="Delete PDF";del.style.marginLeft="8px";del.style.background="#b91c1c";const msg=document.createElement("span");save.onclick=async()=>{const {error:e}=await db.from("academy_course_pdfs").update({title:t.value.trim(),description:d.value.trim(),is_published:p.checked}).eq("id",item.id);msg.textContent=e?" "+e.message:" Saved";};del.onclick=async()=>{if(!confirm("Delete this PDF?"))return;const {error:e}=await db.from("academy_course_pdfs").delete().eq("id",item.id);if(e){msg.textContent=e.message;return;}await db.storage.from("academy-pdfs").remove([item.storage_path]);render();};row.append(courseName,t,d,l,save,del,msg);list.appendChild(row);});if(!data?.length)list.textContent="No PDFs uploaded yet.";};
+ upload.onclick=async()=>{const f=file.files?.[0];if(!title.value.trim()||!f){status.textContent="Enter PDF title and select a file.";return;}if((f.type!=="application/pdf"&&!f.name.toLowerCase().endsWith(".pdf"))||f.size>50*1024*1024){status.textContent="PDF only, maximum 50 MB.";return;}upload.disabled=true;status.textContent="Uploading...";const path=course.value+"/"+crypto.randomUUID()+".pdf";const {error:ue}=await db.storage.from("academy-pdfs").upload(path,f,{contentType:"application/pdf"});if(ue){status.textContent=ue.message;upload.disabled=false;return;}const {error:ie}=await db.from("academy_course_pdfs").insert({course_id:course.value,title:title.value.trim(),description:desc.value.trim(),storage_path:path,is_published:published.checked});if(ie){await db.storage.from("academy-pdfs").remove([path]);status.textContent=ie.message;upload.disabled=false;return;}title.value="";desc.value="";file.value="";status.textContent="PDF uploaded.";await render();upload.disabled=false;};
+ box.append(course,title,desc,file,label,upload,status,list);await render();
+}
 async function loadAdminPayments() {
   const history = document.getElementById("adminPaymentHistory");
   const revenueEl = document.getElementById("adminTotalRevenue");
