@@ -1253,6 +1253,27 @@ const db = window.supabase.createClient(
   SUPABASE_KEY
 );
 
+// Use one normalized student directory in both Course Purchases and Payment History.
+// The RPC is the trusted admin-only source for student identity fields.
+async function loadAcademyStudentDirectory() {
+  const { data, error } = await db.rpc("get_academy_students");
+  if (error) throw error;
+
+  return (Array.isArray(data) ? data : []).map(student => {
+    const userId = student.student_id || student.user_id || student.id || "";
+    return {
+      ...student,
+      student_id: userId,
+      user_id: userId,
+      student_number: student.student_number || student.student_no ||
+        student.roll_number || student.registration_number || "",
+      student_name: student.student_name || student.full_name ||
+        student.name || student.user_metadata?.full_name || "",
+      student_email: student.student_email || student.email || ""
+    };
+  }).filter(student => student.user_id);
+}
+
 // Resumable uploads for large private lesson videos (TUS protocol).
 async function uploadAcademyVideoResumable(path, file, onProgress) {
   if (!window.tus || !window.tus.Upload) {
@@ -2413,12 +2434,13 @@ document.getElementById("adminModal").classList.remove("show");
 async function loadAdminStudents() {
   const list = document.getElementById("adminStudentList");
   list.textContent = "Loading students and course purchases...";
-  const { data, error } = await db.rpc("get_academy_students");
-  if (error) {
-    list.textContent = "Unable to load students: " + error.message;
+  let students;
+  try {
+    students = await loadAcademyStudentDirectory();
+  } catch (error) {
+    list.textContent = "Unable to load student details: " + error.message;
     return;
   }
-  const students = (data || []).map(student => ({ ...student, user_id: student.student_id }));
   const [{ data: enrollmentRows, error: enrollmentError }, { data: courseRows, error: courseError }] = await Promise.all([
     db.from("course_enrollments").select("user_id,course_id,created_at").order("created_at", { ascending: false }),
     db.from("academy_courses").select("course_id,title")
@@ -2679,12 +2701,16 @@ async function loadAdminPayments() {
   }
 
   const rows = payments || [];
-  const { data: students, error: studentsError } = await db.rpc("get_academy_students");
-  if (studentsError) {
-    console.error("Could not load student details for payments:", studentsError);
+  let students = [];
+  let studentDirectoryError = null;
+  try {
+    students = await loadAcademyStudentDirectory();
+  } catch (directoryError) {
+    studentDirectoryError = directoryError;
+    console.error("Could not load student details for payments:", directoryError);
   }
-  const studentMap = new Map((students || []).map(student => [
-    student.student_id,
+  const studentMap = new Map(students.map(student => [
+    student.user_id,
     {
       number: student.student_number || "N/A",
       name: student.student_name || "Name not provided",
@@ -2798,8 +2824,16 @@ async function loadAdminPayments() {
   );
 
   history.innerHTML = "";
+  if (studentDirectoryError) {
+    const warning = document.createElement("p");
+    warning.textContent = "Payment records loaded, but student number/name/email could not be matched. Check the get_academy_students RPC: " + studentDirectoryError.message;
+    warning.style.color = "#fbbf24";
+    history.appendChild(warning);
+  }
   if (!rows.length) {
-    history.textContent = "No payment records found.";
+    const empty = document.createElement("p");
+    empty.textContent = "No payment records found.";
+    history.appendChild(empty);
     return;
   }
 
