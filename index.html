@@ -2418,7 +2418,7 @@ async function loadAdminStudents() {
     list.textContent = "Unable to load students: " + error.message;
     return;
   }
-  const students = data || [];
+  const students = (data || []).map(student => ({ ...student, user_id: student.student_id }));
   const [{ data: enrollmentRows, error: enrollmentError }, { data: courseRows, error: courseError }] = await Promise.all([
     db.from("course_enrollments").select("user_id,course_id,created_at").order("created_at", { ascending: false }),
     db.from("academy_courses").select("course_id,title")
