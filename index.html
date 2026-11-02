@@ -2684,7 +2684,7 @@ async function loadAdminPayments() {
     console.error("Could not load student details for payments:", studentsError);
   }
   const studentMap = new Map((students || []).map(student => [
-    student.user_id,
+    student.student_id,
     {
       number: student.student_number || "N/A",
       name: student.student_name || "Name not provided",
